@@ -19,12 +19,15 @@
 #
 
 from optparse import OptionParser
+from urllib2 import urlopen
 
 from sqlalchemy import create_engine
 from sqlalchemy import Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
 
 from pyqaanalysis.db import Base
+from pyqaanalysis.utils import JSONParser
+
 
 def read_options():
     parser = OptionParser(usage="usage: %prog [options]",
@@ -77,4 +80,18 @@ if __name__ == '__main__':
     Base.metadata.create_all(engine)
     
     session.commit()
-    
+
+    if opts.type == "ab":
+        # askbot backend
+        print opts.url + "/v1/info/"
+        stream = urlopen(opts.url + "/api/v1/info/").read()
+        print stream    
+        parser = JSONParser(stream)
+        parser.parse()
+        data = parser.data
+        print data
+        print data.comments
+        print data.users
+
+
+        
