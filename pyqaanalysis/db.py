@@ -22,13 +22,17 @@
 
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+from sqlalchemy import Table, Column, Integer, String, MetaData, DateTime, Text
+
 
 Base = declarative_base()
 
 class People(Base):
-    # People table: contains information about people participating
-    #               in questions, comments or answers
+    """Contains information about people participating in questions, comments or answers
+    """
+
     __tablename__ = 'people'
+
     id = Column(Integer, primary_key = True) # Unique id
     nickname =  Column(String(50))
     joined_at = Column(DateTime, nullable = False)
@@ -36,51 +40,70 @@ class People(Base):
     avatar = Column(String(256))
     user_identifier = Column(Integer) # Unique user id in the analyzed repository
 
+
 class Questions(Base):
-    # Questions table: contains information about all of the questions
-    #                  found in a QA tool
+    """Contains information about all of the questions found in a QA tool
+    """
+
     __tablename__ = 'questions'
-    id = Column(Integer, primary_key = True) # Unique id
+
+    id = Column(Integer, primary_key=True) # Unique id
     answer_count = Column(Integer)
     question_identifier = Column(Integer) # Unique question id used in the analyzed repo
     view_count = Column(Integer)
-    last_updated = Column(DateTime, nullable = False)
+    last_updated = Column(DateTime, nullable=False)
     title = Column(String(256))
     body = Column(Text())
-    URL = Column(String(256)
+    url = Column(String(256))
     score = Column(Integer)
-    submitted_on = Column(DateTime, nullable = False)
+    submitted_on = Column(DateTime, nullable=False)
+
 
 class QuestionsTags(Base):
-    # QuestionsTags table: contains links for the tags assigned to each question
+    """Contains links for the tags assigned to each question
+    """
+
     __tablename__ = 'questionstags'
-    id = Column(Integer, primary_key = True)
+
+    id = Column(Integer, primary_key=True)
     question_id = Column(Integer)
     tag_id = Column(Integer)
 
+
 class Tags(Base):
-    # Tags table: list of tags
+    """List of tags
+    """
+
     __tablename__ = 'tags'
-    id = Column(Integer, primary_key = True)
-    tag = Column(Strin(50))
+
+    id = Column(Integer, primary_key=True)
+    tag = Column(String(50))
+
 
 class Answers(Base):
-    # Answers table: list of answers found for each question
+    """List of answers found for each question
+    """
+
     __tablename__ = 'answers'
-    id = Column(Integer, primary_key = True)
+
+    id = Column(Integer, primary_key=True)
     body = Column(Text())
     user_id = Column(Integer)
     question_id = Column(Integer)
-    submitted_on = Column(DateTime, nullable = False)
+    submitted_on = Column(DateTime, nullable=False)
+
     
 class Comments(Base):
-    # Comments table: comments done either to Answers or Questions
+    """Comments done either to Answers or Questions
+    """
+
     __tablename__ = 'comments'
-    id = Column(Integer, primary_key = True)
+
+    id = Column(Integer, primary_key=True)
     question_id = Column(Integer)
     answer_id = Column(Integer)
     body = Column(Text())
     user_id = Column(Integer)
-    submitted_on = Column(DateTime, nullable = False)
+    submitted_on = Column(DateTime, nullable=False)
 
 
