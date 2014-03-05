@@ -80,8 +80,8 @@ def askbot_info(session, url):
 
 def askbot_users(session, url):
     
-    cont = 30
-    pages = 30
+    cont = 1
+    pages = 1
     while cont <= pages:
         stream = requests.get(url + "/api/v1/users/?page=" + str(cont))
         cont = cont + 1
