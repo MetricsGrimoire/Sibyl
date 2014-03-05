@@ -116,8 +116,8 @@ class JSONParser(Parser):
         :raises TypeError: when the json to parse is not a instance of str.
         :raises JSONParserError: when an error occurs parsing the stream.
         """
-        if not isinstance(self.stream, str):
-            raise TypeError('expected type str in stream parameter.')
+        if not isinstance(self.stream, str) and not isinstance(self.stream, unicode):
+            raise TypeError('expected type str or unicode in stream parameter.')
 
         try:
             self._data = json.loads(self.stream, object_hook=JSONStruct)

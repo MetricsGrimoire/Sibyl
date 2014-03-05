@@ -34,8 +34,9 @@ class People(Base):
     __tablename__ = 'people'
 
     id = Column(Integer, primary_key = True) # Unique id
-    nickname =  Column(String(50))
+    username =  Column(String(50))
     joined_at = Column(DateTime, nullable = False)
+    last_seen_at = Column(DateTime, nullable = False)
     reputation = Column(Integer)
     avatar = Column(String(256))
     user_identifier = Column(Integer) # Unique user id in the analyzed repository
