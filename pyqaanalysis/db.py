@@ -52,12 +52,13 @@ class Questions(Base):
     answer_count = Column(Integer)
     question_identifier = Column(Integer) # Unique question id used in the analyzed repo
     view_count = Column(Integer)
-    last_updated = Column(DateTime, nullable=False)
+    last_activity_at = Column(DateTime, nullable=False)
+    last_activity_by = Column(Integer) 
     title = Column(String(256))
     body = Column(Text())
     url = Column(String(256))
     score = Column(Integer)
-    submitted_on = Column(DateTime, nullable=False)
+    added_at = Column(DateTime, nullable=False)
 
 
 class QuestionsTags(Base):
