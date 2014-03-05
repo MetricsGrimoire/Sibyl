@@ -26,7 +26,7 @@ from sqlalchemy import Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
 import requests
 
-from pyqaanalysis.db import Base, People
+from pyqaanalysis.db import Base, People, Questions
 from pyqaanalysis.utils import JSONParser
 
 
@@ -76,7 +76,33 @@ def askbot_info(session, url):
     return parser.data
 
 
-#def askbot_questions():
+def askbot_questions(session, url):
+    
+    cont = 1
+    pages = 1
+    while cont <= pages:
+        stream = requests.get(url + "/api/v1/questions/?page=" + str(cont))
+        cont = cont + 1
+        parser = JSONParser(unicode(stream.text))
+        parser.parse()
+        data = parser.data
+        pages = int(data.pages)
+
+        for question in data.questions:
+            dbquestion = Questions()
+            dbquestion.answer_count = question['answer_count']
+            dbquestion.question_identifier = question['id']
+            dbquestion.last_activity_by = question['last_activity_by']['id']
+            dbquestion.view_count = question['view_count']
+            dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
+            dbquestion.title = question['title']
+            dbquestion.url = question['url']
+            dbquestion.author_id = question['author']['id']
+            dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
+            dbquestion.score = question['score']
+
+            session.add(dbquestion)
+            session.commit()
 
 def askbot_users(session, url):
     
@@ -85,13 +111,12 @@ def askbot_users(session, url):
     while cont <= pages:
         stream = requests.get(url + "/api/v1/users/?page=" + str(cont))
         cont = cont + 1
-        parser = JSONParser(stream.text)
+        parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
         pages = int(data.pages)
 
         for user in data.users:
-
             dbuser = People()
             dbuser.username = user['username']
             dbuser.reputation = user['reputation']
@@ -107,7 +132,8 @@ def askbot_users(session, url):
 def parse_askbot(session, url):
 
     info = askbot_info(session, url)
-    users = askbot_users(session, url)
+    #users = askbot_users(session, url)
+    questions = askbot_questions(session, url)
 
 
 if __name__ == '__main__':
