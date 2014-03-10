@@ -26,6 +26,9 @@ from sqlalchemy import Table, Column, Integer, String, MetaData, DateTime, Text
 
 
 Base = declarative_base()
+# Create MySQL database flavour as:
+# CREATE DATABASE <database> CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+
 
 class People(Base):
     """Contains information about people participating in questions, comments or answers
