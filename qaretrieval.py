@@ -29,9 +29,9 @@ import requests
 
 from BeautifulSoup import BeautifulSoup 
 
-from pyqaanalysis.db import Base, People, Questions
+from pyqaanalysis.db import Base, People, Questions, Tags, QuestionsTags
 from pyqaanalysis.utils import JSONParser
-from pyqaanalysis.askbot import AskbotHTML
+from pyqaanalysis.askbot import AskbotQuestionHTML
 
 
 def read_options():
@@ -85,11 +85,42 @@ def get_body(url):
     return askbot.getBody()
 
 
+def askbot_tags(session, question_id, tags, alltags):
+    # This function inserts into the questionstags and tags tables
+    # information associated to a specific question.
+    # This returns an updated version of the tags list
+
+    for tag in tags:
+        if tag not in alltags:
+            # new tag found
+            # WARNING: in case this tool is modified to be incremental,
+            # this will fail. This is due to the tags list structure is
+            # started from scratch and not initialize based on db existing data
+            alltags.append(tag)
+            # insert tag in db
+            dbtag = Tags()
+            dbtag.tag = tag
+
+            session.add(dbtag)
+            session.commit()
+
+        tag_id = alltags.index(tag) + 1
+        
+        dbquestiontag = QuestionsTags()
+        dbquestiontag.question_id = question_id
+        dbquestiontag.tag_id = tag_id
+        
+        session.add(dbquestiontag)
+        session.commit()
+
+    return alltags
+
 
 def askbot_questions(session, url):
     
     cont = 1
     pages = 1
+    alltags = []
     while cont <= pages:
         stream = requests.get(url + "/api/v1/questions/?page=" + str(cont))
         cont = cont + 1
@@ -112,8 +143,10 @@ def askbot_questions(session, url):
             dbquestion.score = question['score']
 
             # Retrieving information not available through the v1 askbot API
-            askbot = AskbotHTML(question['url'])
+            askbot = AskbotQuestionHTML(question['url'])
             dbquestion.body = askbot.getBody()
+            tags = askbot.getTags()
+            alltags = askbot_tags(session, question['id'], tags, alltags)
 
             session.add(dbquestion)
             session.commit()

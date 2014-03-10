@@ -24,20 +24,22 @@ import requests
 from BeautifulSoup import BeautifulSoup
 
 
-class AskbotHTML(object):
-    """Askbot HTML parser
+class AskbotQuestionHTML(object):
+    """Askbot Question HTML parser.
     """
 
     def __init__(self, url):
         
         self.url = url
-        self.html = BeautifulSoup(requests.get(url).text)
+        self.bsoup = BeautifulSoup(requests.get(url).text)
+        self.tags = []
 
     def getBody(self):
-        #Returns body question message
+        # Returns body question message
+        # This is found under the <meta name="description" content="">
     
-        bsoup = BeautifulSoup(requests.get(self.url).text)
-        metas = bsoup.findAll('meta')
+        metas = self.bsoup.findAll('meta')
+        body = ""
 
         for meta in metas:
             found = False
@@ -52,4 +54,25 @@ class AskbotHTML(object):
 
         return unicode(body)
 
+    def getTags(self):
+        # Returns a list of tags
+        # This is found under the <meta name="keywords" content="">
+        # Keywords are comma separated
+        
+        metas = self.bsoup.findAll('meta')
+        tags = ""
+
+        for meta in metas:
+            found = False
+            for attr, value in meta.attrs:
+                if found:
+                    found = False
+                    tags = value
+                if attr == "name" and value == "keywords":
+                    # the following loop of attr, value is the field with the body
+                    # of the question
+                    found = True
+
+        return tags.split(',')
+ 
 
