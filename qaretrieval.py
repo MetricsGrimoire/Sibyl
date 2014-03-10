@@ -24,7 +24,10 @@ import datetime
 from sqlalchemy import create_engine
 from sqlalchemy import Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
+
 import requests
+
+from BeautifulSoup import BeautifulSoup 
 
 from pyqaanalysis.db import Base, People, Questions
 from pyqaanalysis.utils import JSONParser
@@ -75,6 +78,26 @@ def askbot_info(session, url):
 
     return parser.data
 
+def get_body(url):
+
+    body = ""
+    
+    bsoup = BeautifulSoup(requests.get(url).text)
+    metas = bsoup.findAll('meta')
+
+    for meta in metas:
+        found = False
+        for attr, value in meta.attrs:
+            if found:
+                found = False
+                body = value
+            if attr == "name" and value == "description":
+                # the following loop of attr, value is the field with the body
+                # of the question
+                found = True
+
+    return unicode(body)
+
 
 def askbot_questions(session, url):
     
@@ -100,6 +123,7 @@ def askbot_questions(session, url):
             dbquestion.author_id = question['author']['id']
             dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
             dbquestion.score = question['score']
+            dbquestion.body = get_body(question['url'])
 
             session.add(dbquestion)
             session.commit()
