@@ -31,6 +31,7 @@ from BeautifulSoup import BeautifulSoup
 
 from pyqaanalysis.db import Base, People, Questions
 from pyqaanalysis.utils import JSONParser
+from pyqaanalysis.askbot import AskbotHTML
 
 
 def read_options():
@@ -80,23 +81,9 @@ def askbot_info(session, url):
 
 def get_body(url):
 
-    body = ""
-    
-    bsoup = BeautifulSoup(requests.get(url).text)
-    metas = bsoup.findAll('meta')
+    askbot = AskbtoHTML(url) #askbot object
+    return askbot.getBody()
 
-    for meta in metas:
-        found = False
-        for attr, value in meta.attrs:
-            if found:
-                found = False
-                body = value
-            if attr == "name" and value == "description":
-                # the following loop of attr, value is the field with the body
-                # of the question
-                found = True
-
-    return unicode(body)
 
 
 def askbot_questions(session, url):
@@ -123,7 +110,10 @@ def askbot_questions(session, url):
             dbquestion.author_id = question['author']['id']
             dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
             dbquestion.score = question['score']
-            dbquestion.body = get_body(question['url'])
+
+            # Retrieving information not available through the v1 askbot API
+            askbot = AskbotHTML(question['url'])
+            dbquestion.body = askbot.getBody()
 
             session.add(dbquestion)
             session.commit()
