@@ -29,7 +29,7 @@ import requests
 
 from BeautifulSoup import BeautifulSoup 
 
-from pyqaanalysis.db import Base, People, Questions, Tags, QuestionsTags
+from pyqaanalysis.db import Base, People, Questions, Tags, QuestionsTags, Answers
 from pyqaanalysis.utils import JSONParser
 from pyqaanalysis.askbot import AskbotQuestionHTML
 
@@ -115,6 +115,18 @@ def askbot_tags(session, question_id, tags, alltags):
 
     return alltags
 
+def askbot_answers(session, answers, question_id):
+    # Insert in database all of the answers related to question_id
+
+    for answer in answers:
+        dbanswer = Answers()
+        dbanswer.body = answer.body
+        dbanswer.submitted_on = answer.date
+        dbanswer.question_id = question_id
+        #TODO: answer.user is a string, while dbanswer.user_id expects an int.
+        #dbanswer.user_id = answer.user
+        session.add(dbanswer)
+        session.commit()
 
 def askbot_questions(session, url):
     
@@ -147,6 +159,8 @@ def askbot_questions(session, url):
             dbquestion.body = askbot.getBody()
             tags = askbot.getTags()
             alltags = askbot_tags(session, question['id'], tags, alltags)
+            answers = askbot.getAnswers()
+            askbot_answers(session, answers, question['id'])
 
             session.add(dbquestion)
             session.commit()

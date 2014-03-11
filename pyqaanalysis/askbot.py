@@ -19,9 +19,20 @@
 #
 # Beautiful Soup HTML parser for Askbot QA tool
 
+import re
+
 import requests
 
 from BeautifulSoup import BeautifulSoup
+
+class Answer(object):
+    """Askbot Answer basic class
+    """
+
+    def __init__(self, body, date, user):
+        self.body = body
+        self.date = date
+        self.user = user
 
 
 class AskbotQuestionHTML(object):
@@ -75,4 +86,30 @@ class AskbotQuestionHTML(object):
 
         return tags.split(',')
  
+    def getAnswers(self):
+        # Returns a list of answers with their comments if exist
 
+        answers = self.bsoup.findAll(attrs={"class" : re.compile("^post answer")})
+
+        all_answers = []
+        for answer in answers:
+            # Obtain body of the message
+            paragraphs = answer.findAll('p')
+            # we need to take the second paragraph
+            paragraph = paragraphs[1]
+            text = paragraph.text
+
+            # Obtain time of the answer
+            date_tag = answer.findAll('abbr')
+            date = date_tag[0].text 
+
+            # Obtain user card
+            user = answer.findAll(attrs={"class" : "user-card"})
+            # User name is obtain from the text of the second <a> tag
+            user_links = user[0].findAll('a')
+            user_name = user_links[1].text
+
+            answer = Answer(text, date, user_name)
+            all_answers.append(answer)
+
+        return all_answers
