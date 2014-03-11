@@ -29,10 +29,13 @@ class Answer(object):
     """Askbot Answer basic class
     """
 
-    def __init__(self, body, date, user):
+    def __init__(self, identifier, body, date, user, votes):
+      
+        self.identifier = identifier
         self.body = body
         self.date = date
         self.user = user
+        self.votes = votes
 
 
 class AskbotQuestionHTML(object):
@@ -99,6 +102,9 @@ class AskbotQuestionHTML(object):
             paragraph = paragraphs[1]
             text = paragraph.text
 
+            # Obtain unique askbot identifier
+            identifier = int(answer.attrMap['data-post-id'])
+
             # Obtain time of the answer
             date_tag = answer.findAll('abbr')
             date = date_tag[0].text 
@@ -109,7 +115,12 @@ class AskbotQuestionHTML(object):
             user_links = user[0].findAll('a')
             user_name = user_links[1].text
 
-            answer = Answer(text, date, user_name)
+            # Obtain votes 
+            votes = answer.findAll(attrs={"class" : "vote-number"})
+            answer_votes = int(votes[0].text)
+
+            answer = Answer(identifier, text, date, user_name, answer_votes)
             all_answers.append(answer)
 
         return all_answers
+

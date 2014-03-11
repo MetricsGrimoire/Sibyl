@@ -92,10 +92,12 @@ class Answers(Base):
     __tablename__ = 'answers'
 
     id = Column(Integer, primary_key=True)
+    identifier = Column(Integer)
     body = Column(Text())
     user_id = Column(Integer)
     question_id = Column(Integer)
     submitted_on = Column(DateTime, nullable=False)
+    votes = Column(Integer)
 
     
 class Comments(Base):
