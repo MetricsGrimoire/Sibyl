@@ -72,6 +72,7 @@ def read_options():
     return opts
 
 def askbot_info(session, url):
+    # Expected basic info: total users, total pages, total questions
 
     stream = requests.get(opts.url + "/api/v1/info/")
     parser = JSONParser(unicode(stream.text))
@@ -80,6 +81,7 @@ def askbot_info(session, url):
     return parser.data
 
 def get_body(url):
+    # Parsing HTML
 
     askbot = AskbtoHTML(url) #askbot object
     return askbot.getBody()
@@ -133,6 +135,8 @@ def askbot_answers(session, answers, question_id, users):
         session.commit()
 
 def askbot_questions(session, url, users):
+    # For each question, answers are retrieved.
+    # This is a mix of API + HTML parser
     
     cont = 1
     pages = 1
@@ -173,6 +177,7 @@ def askbot_questions(session, url, users):
             session.commit()
 
 def askbot_users(session, url):
+    # Parsing users through the API
     
     users = [] # List of all users. Their position in the list + 1
                # is their unique id
@@ -203,6 +208,7 @@ def askbot_users(session, url):
     return users
 
 def parse_askbot(session, url):
+    # Initial parsing of general info, users and questions
 
     info = askbot_info(session, url)
     users = askbot_users(session, url)
