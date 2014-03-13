@@ -157,7 +157,7 @@ def askbot_questions(session, url, users):
             dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
             dbquestion.title = question['title']
             dbquestion.url = question['url']
-            dbquestion.author_id = question['author']['id']
+            dbquestion.author = question['author']['id']
             dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
             dbquestion.score = question['score']
 
@@ -205,9 +205,8 @@ def askbot_users(session, url):
 def parse_askbot(session, url):
 
     info = askbot_info(session, url)
-    #users = askbot_users(session, url)
-    #questions = askbot_questions(session, url, users)
-    questions = askbot_questions(session, url, [])
+    users = askbot_users(session, url)
+    questions = askbot_questions(session, url, users)
 
 
 if __name__ == '__main__':

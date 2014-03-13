@@ -62,6 +62,7 @@ class Questions(Base):
     url = Column(String(256))
     score = Column(Integer)
     added_at = Column(DateTime, nullable=False)
+    author = Column(Integer)
 
 
 class QuestionsTags(Base):
