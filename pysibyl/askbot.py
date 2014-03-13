@@ -34,7 +34,7 @@ class Answer(object):
         self.identifier = identifier
         self.body = body
         self.date = date
-        self.user = user
+        self.user_identifier = user
         self.votes = votes
 
 
@@ -113,12 +113,16 @@ class AskbotQuestionHTML(object):
             # User name is obtain from the text of the second <a> tag
             user_links = user[0].findAll('a')
             user_name = user_links[1].text
+            link = user_links[1]
+            href = link['href']
+            # link similar to: /en/users/0000/username/ in OpenStack askbot
+            user_identifier = href.split('/')[3]
 
             # Obtain votes 
             votes = answer.findAll(attrs={"class" : "vote-number"})
             answer_votes = int(votes[0].text)
 
-            answer = Answer(identifier, text, date, user_name, answer_votes)
+            answer = Answer(identifier, text, date, user_identifier, answer_votes)
             all_answers.append(answer)
 
         return all_answers

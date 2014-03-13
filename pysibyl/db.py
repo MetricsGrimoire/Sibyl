@@ -42,7 +42,7 @@ class People(Base):
     last_seen_at = Column(DateTime, nullable = False)
     reputation = Column(Integer)
     avatar = Column(String(256))
-    user_identifier = Column(Integer) # Unique user id in the analyzed repository
+    identifier = Column(Integer) # Unique user id in the analyzed repository
 
 
 class Questions(Base):
@@ -62,7 +62,7 @@ class Questions(Base):
     url = Column(String(256))
     score = Column(Integer)
     added_at = Column(DateTime, nullable=False)
-    author = Column(Integer)
+    author_identifier = Column(Integer) # points to People.user_identifier
 
 
 class QuestionsTags(Base):
@@ -72,7 +72,7 @@ class QuestionsTags(Base):
     __tablename__ = 'questionstags'
 
     id = Column(Integer, primary_key=True)
-    question_id = Column(Integer)
+    question_identifier = Column(Integer)
     tag_id = Column(Integer)
 
 
@@ -95,8 +95,8 @@ class Answers(Base):
     id = Column(Integer, primary_key=True)
     identifier = Column(Integer)
     body = Column(Text())
-    user_id = Column(Integer)
-    question_id = Column(Integer)
+    user_identifier = Column(Integer)
+    question_identifier = Column(Integer)
     submitted_on = Column(DateTime, nullable=False)
     votes = Column(Integer)
 

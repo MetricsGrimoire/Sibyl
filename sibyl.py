@@ -109,7 +109,7 @@ def askbot_tags(session, question_id, tags, alltags):
         tag_id = alltags.index(tag) + 1
         
         dbquestiontag = QuestionsTags()
-        dbquestiontag.question_id = question_id
+        dbquestiontag.question_identifier = question_id
         dbquestiontag.tag_id = tag_id
         
         session.add(dbquestiontag)
@@ -117,24 +117,21 @@ def askbot_tags(session, question_id, tags, alltags):
 
     return alltags
 
-def askbot_answers(session, answers, question_id, users):
+def askbot_answers(session, answers, question_identifier):
     # Insert in database all of the answers related to question_id
 
     for answer in answers:
         dbanswer = Answers()
         dbanswer.body = answer.body
         dbanswer.submitted_on = answer.date
-        dbanswer.question_id = question_id
+        dbanswer.question_identifier = question_identifier
         dbanswer.votes = answer.votes
         dbanswer.identifier = answer.identifier
-        if answer.user in users:
-            # TODO: if users are not in the structure, this is a new
-            # user and should be inserted in the db and the list
-            dbanswer.user_id = users.index(answer.user)
+        dbanswer.user_identifier = answer.user_identifier
         session.add(dbanswer)
         session.commit()
 
-def askbot_questions(session, url, users):
+def askbot_questions(session, url):
     # For each question, answers are retrieved.
     # This is a mix of API + HTML parser
     
@@ -171,7 +168,7 @@ def askbot_questions(session, url, users):
             tags = askbot.getTags()
             alltags = askbot_tags(session, question['id'], tags, alltags)
             answers = askbot.getAnswers()
-            askbot_answers(session, answers, question['id'], users)
+            askbot_answers(session, answers, question['id'])
 
             session.add(dbquestion)
             session.commit()
@@ -179,8 +176,6 @@ def askbot_questions(session, url, users):
 def askbot_users(session, url):
     # Parsing users through the API
     
-    users = [] # List of all users. Their position in the list + 1
-               # is their unique id
     cont = 1
     pages = 1
     while cont <= pages:
@@ -198,9 +193,7 @@ def askbot_users(session, url):
             dbuser.avatar = user['avatar']
             dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_seen_at'])).strftime('%Y-%m-%d %H:%M:%S')
             dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['joined_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbuser.user_identifier = user['id']
-
-            users.append(user['username'])
+            dbuser.identifier = user['id']
 
             session.add(dbuser)
             session.commit()
@@ -211,8 +204,8 @@ def parse_askbot(session, url):
     # Initial parsing of general info, users and questions
 
     info = askbot_info(session, url)
-    users = askbot_users(session, url)
-    questions = askbot_questions(session, url, users)
+    askbot_users(session, url)
+    questions = askbot_questions(session, url)
 
 
 if __name__ == '__main__':
