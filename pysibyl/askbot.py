@@ -97,10 +97,9 @@ class AskbotQuestionHTML(object):
         all_answers = []
         for answer in answers:
             # Obtain body of the message
-            paragraphs = answer.findAll('p')
-            # we need to take the second paragraph
-            paragraph = paragraphs[1]
-            text = paragraph.text
+            body = answer.findAll(attrs={"class" : "post-body"})
+            body = body[0] #only 1 item in the list
+            text = body.text
 
             # Obtain unique askbot identifier
             identifier = int(answer.attrMap['data-post-id'])

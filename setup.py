@@ -24,13 +24,13 @@
 
 from distutils.core import setup
 
-setup(name = "QA Analyzer",
+setup(name = "Sibyl",
       version = "0.1",
       author =  "Daniel Izquierdo",
       author_email = "dizquierdo@bitergia.com",
       description = "Retrieval tool for Questions & Answers platforms",
-      url = "https://github.com/MetricsGrimoire/QAAnalyzer",
-      packages = ["pyqaanalysis"],
+      url = "https://github.com/MetricsGrimoire/Sibyl",
+      packages = ["pysibyl"],
       data_files = [],
-      scripts = ["qaretrieval.py"])
+      scripts = ["sibyl.py"])
 
