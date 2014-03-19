@@ -31,7 +31,7 @@ from BeautifulSoup import BeautifulSoup
 
 from pysibyl.db import Base, People, Questions, Tags, QuestionsTags, Answers
 from pysibyl.utils import JSONParser
-from pysibyl.askbot import AskbotQuestionHTML
+from pysibyl.askbot import Askbot, AskbotQuestionHTML
 
 
 def read_options():
@@ -71,141 +71,11 @@ def read_options():
 
     return opts
 
-def askbot_info(session, url):
-    # Expected basic info: total users, total pages, total questions
-
-    stream = requests.get(opts.url + "/api/v1/info/")
-    parser = JSONParser(unicode(stream.text))
-    parser.parse()
-
-    return parser.data
-
-def get_body(url):
-    # Parsing HTML
-
-    askbot = AskbtoHTML(url) #askbot object
-    return askbot.getBody()
-
-
-def askbot_tags(session, question_id, tags, alltags):
-    # This function inserts into the questionstags and tags tables
-    # information associated to a specific question.
-    # This returns an updated version of the tags list
-
-    for tag in tags:
-        if tag not in alltags:
-            # new tag found
-            # WARNING: in case this tool is modified to be incremental,
-            # this will fail. This is due to the tags list structure is
-            # started from scratch and not initialize based on db existing data
-            alltags.append(tag)
-            # insert tag in db
-            dbtag = Tags()
-            dbtag.tag = tag
-
-            session.add(dbtag)
-            session.commit()
-
-        tag_id = alltags.index(tag) + 1
-        
-        dbquestiontag = QuestionsTags()
-        dbquestiontag.question_identifier = question_id
-        dbquestiontag.tag_id = tag_id
-        
-        session.add(dbquestiontag)
-        session.commit()
-
-    return alltags
-
-def askbot_answers(session, answers, question_identifier):
-    # Insert in database all of the answers related to question_id
-
-    for answer in answers:
-        dbanswer = Answers()
-        dbanswer.body = answer.body
-        dbanswer.submitted_on = answer.date
-        dbanswer.question_identifier = question_identifier
-        dbanswer.votes = answer.votes
-        dbanswer.identifier = answer.identifier
-        dbanswer.user_identifier = answer.user_identifier
-        session.add(dbanswer)
-        session.commit()
-
-def askbot_questions(session, url):
-    # For each question, answers are retrieved.
-    # This is a mix of API + HTML parser
-    
-    cont = 1
-    pages = 1
-    alltags = []
-    while cont <= pages:
-        print "Analyzing: " + url + "/api/v1/questions/?page=" + str(cont)
-        stream = requests.get(url + "/api/v1/questions/?page=" + str(cont))
-        cont = cont + 1
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        data = parser.data
-        pages = int(data.pages)
-
-        for question in data.questions:
-            print "Analyzing: " + question['url']         
- 
-            dbquestion = Questions()
-            dbquestion.answer_count = question['answer_count']
-            dbquestion.question_identifier = question['id']
-            dbquestion.last_activity_by = question['last_activity_by']['id']
-            dbquestion.view_count = question['view_count']
-            dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.title = question['title']
-            dbquestion.url = question['url']
-            dbquestion.author = question['author']['id']
-            dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.score = question['score']
-
-            # Retrieving information not available through the v1 askbot API
-            askbot = AskbotQuestionHTML(question['url'])
-            dbquestion.body = askbot.getBody()
-            tags = askbot.getTags()
-            alltags = askbot_tags(session, question['id'], tags, alltags)
-            answers = askbot.getAnswers()
-            askbot_answers(session, answers, question['id'])
-
-            session.add(dbquestion)
-            session.commit()
-
-def askbot_users(session, url):
-    # Parsing users through the API
-    
-    cont = 1
-    pages = 1
-    while cont <= pages:
-        stream = requests.get(url + "/api/v1/users/?page=" + str(cont))
-        cont = cont + 1
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        data = parser.data
-        pages = int(data.pages)
-
-        for user in data.users:
-            dbuser = People()
-            dbuser.username = user['username']
-            dbuser.reputation = user['reputation']
-            dbuser.avatar = user['avatar']
-            dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_seen_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['joined_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbuser.identifier = user['id']
-
-            session.add(dbuser)
-            session.commit()
-
-    return users
-
-def parse_askbot(session, url):
+def askbot_parser(session, url):
     # Initial parsing of general info, users and questions
 
-    info = askbot_info(session, url)
-    askbot_users(session, url)
-    questions = askbot_questions(session, url)
+    askbot = Askbot(session, url)
+    askbot.parser()
 
 
 if __name__ == '__main__':
@@ -224,6 +94,6 @@ if __name__ == '__main__':
 
     if opts.type == "ab":
         # askbot backend
-        parse_askbot(session, opts.url)
+        askbot_parser(session, opts.url)
 
         
