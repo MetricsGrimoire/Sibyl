@@ -31,7 +31,7 @@ from BeautifulSoup import BeautifulSoup
 
 from pysibyl.db import Base, People, Questions, Tags, QuestionsTags, Answers
 from pysibyl.utils import JSONParser
-from pysibyl.askbot import Askbot, AskbotQuestionHTML
+from pysibyl.askbot import Askbot
 
 
 def read_options():
@@ -74,9 +74,44 @@ def read_options():
 def askbot_parser(session, url):
     # Initial parsing of general info, users and questions
 
-    askbot = Askbot(session, url)
-    askbot.parser()
+    askbot = Askbot(url)
+    all_users = []
 
+    for questionset in askbot.questions():
+        users_id = []
+        for question_id in questionset:
+            # TODO: at some point the questions() iterator should
+            # provide each "question" and not a set of them
+            question = askbot.get_question(question_id)
+            users_id.append(question.author)
+            session.add(question)
+            session.commit()
+    
+            #Answers
+            answers = askbot.answers(question)
+            for answer in answers:
+                users_id.append(answer.user_identifier)
+                session.add(answer)
+                session.commit()
+
+            #Tags
+            tags, questiontags = askbot.tags(question)
+            for tag in tags:
+                session.add(tag)
+                session.commit()
+            for questiontag in questiontags:
+                session.add(questiontag)
+                session.commit()
+
+            #Users
+            for user_id in users_id:
+                if user_id not in all_users:
+                    #User not previously inserted
+                    user = askbot.get_user(user_id)
+                    session.add(user)
+                    session.commit()
+                    all_users.append(user)
+                
 
 if __name__ == '__main__':
     opts = read_options()
