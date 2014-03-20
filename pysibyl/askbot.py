@@ -79,7 +79,22 @@ class QuestionsIter(object):
         data = parser.data
 
         for question in data.questions:
-            questions.append(question["id"])
+            # Each of the question is initialized here
+            # Askbot API v1 provides same information when asking
+            # for questions in the API, than when asking question by question.
+            dbquestion = Questions()
+            dbquestion.answer_count = question['answer_count']
+            dbquestion.question_identifier = question['id']
+            dbquestion.last_activity_by = question['last_activity_by']['id']
+            dbquestion.view_count = question['view_count']
+            dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
+            dbquestion.title = question['title']
+            dbquestion.url = question['url']
+            dbquestion.author_identifier = question['author']['id']
+            dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
+            dbquestion.score = question['score']            
+
+            questions.append(dbquestion)
 
         return questions
 
@@ -99,35 +114,18 @@ class Askbot(object):
         # Iterator through the whole set of questions
         return QuestionsIter(self.url)
 
-    def get_question(self, q_id):
-        time.sleep(5)
-        stream = requests.get(self.url + "/api/v1/questions/" + str(q_id))
-        #stream = requests.get(self.url + "/api/v1/questions/25234/")
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        question = parser.data
+    def get_question(self, dbquestion):
+        # This function parses extra information only found in the
+        # HTML and not throuhg the API v1.
 
-        print "Analyzing: " + question['url']
-
-        dbquestion = Questions()
-        dbquestion.answer_count = question['answer_count']
-        dbquestion.question_identifier = question['id']
-        dbquestion.last_activity_by = question['last_activity_by']['id']
-        dbquestion.view_count = question['view_count']
-        dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbquestion.title = question['title']
-        dbquestion.url = question['url']
-        dbquestion.author = question['author']['id']
-        dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbquestion.score = question['score']
+        print "Analyzing: " + dbquestion.url
 
         # Retrieving information not available through the v1 askbot API
-        self.questionHTML = QuestionHTML(question['url'])
+        self.questionHTML = QuestionHTML(dbquestion.url)
         dbquestion.body = self.questionHTML.getBody()
-        #tags = self.questionHTML.getTags()
-        #alltags = self.get_tags(question['id'], tags, alltags)
 
         return dbquestion
+
 
     def tags (self, dbquestion):
         tagslist = []

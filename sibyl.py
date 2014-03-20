@@ -79,23 +79,23 @@ def askbot_parser(session, url):
 
     for questionset in askbot.questions():
         users_id = []
-        for question_id in questionset:
+        for dbquestion in questionset:
             # TODO: at some point the questions() iterator should
             # provide each "question" and not a set of them
-            question = askbot.get_question(question_id)
-            users_id.append(question.author)
-            session.add(question)
+            dbquestion = askbot.get_question(dbquestion)
+            users_id.append(dbquestion.author_identifier)
+            session.add(dbquestion)
             session.commit()
     
             #Answers
-            answers = askbot.answers(question)
+            answers = askbot.answers(dbquestion)
             for answer in answers:
                 users_id.append(answer.user_identifier)
                 session.add(answer)
                 session.commit()
 
             #Tags
-            tags, questiontags = askbot.tags(question)
+            tags, questiontags = askbot.tags(dbquestion)
             for tag in tags:
                 session.add(tag)
                 session.commit()
