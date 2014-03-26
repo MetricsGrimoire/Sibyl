@@ -110,7 +110,7 @@ def askbot_parser(session, url):
                     user = askbot.get_user(user_id)
                     session.add(user)
                     session.commit()
-                    all_users.append(user)
+                    all_users.append(user_id)
                 
 
 if __name__ == '__main__':
