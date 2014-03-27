@@ -27,6 +27,8 @@ from BeautifulSoup import BeautifulSoup
 from pysibyl.askbot import QuestionHTML
 
 FILE_PATH = "tests/data/ask.openstack.org.25627.html"
+FILE_PATH_0_ANSWERS = "tests/data/ask.openstack.org.25960.html"
+FILE_PATH_6_ANSWERS = "tests/data/ask.openstack.org.21353.html"
 
 class TestQuestionHTML(unittest.TestCase):
     """Tests for QuestionHTML class
@@ -41,6 +43,7 @@ class TestQuestionHTML(unittest.TestCase):
 
     def test_parser(self):
         # function to parse url locally stored
+        # and test general information
 
         BODY_TEST = "how can i use Openstack's authentication api with Python plzz..im gettin always the same error 401 (im tryin to acces Keystone with Python program and i need to post some credentials)"
         TAGS_TEST = [u'python', u'keystone#openstack', u'error401', u'Ask', u' OpenStack', u'forum', u'community', u'cloud', u'iaas'] 
@@ -71,6 +74,31 @@ class TestQuestionHTML(unittest.TestCase):
         self.assertEqual(answer.user_identifier, u'2106') 
         self.assertEqual(answer.submitted_on, '2014-03-20 10:50:03 -0500')
         self.assertEqual(answer.votes, 0)
+
+    def test_answers(self):
+        # function to test number of answers in 
+        # several data files
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_0_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        answers = questionHTML.getAnswers(1) #fake question id
+        
+        self.assertEqual(0, len(answers))
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_6_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        answers = questionHTML.getAnswers(1) #fake question id
+
+        self.assertEqual(6, len(answers))
+
 
 if __name__ == "__main__":
     unittest.main()

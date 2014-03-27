@@ -1,0 +1,788 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"> <html xmlns="http://www.w3.org/1999/xhtml"> <head> <title>Can&#39;t access vm&#39;s externally - Ask OpenStack: Q&amp;A Site for OpenStack Users and Developers</title> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> <meta http-equiv="X-UA-Compatible" content="IE=EDGE" /> <meta name="description" content="Hi, I wanted to host a web server inside of my openstack server (running behind my home router) so I followed this guide: openstack.redhat.com/Neutron_with_existing_external_network After that, I set the public network as &#34;shared&#34; (so my other projects can access it) and I set the private network as &#34;shared&#34;. Then, I enabled DHCP on the public subnet so that my instances would get an IP if I hooked them up to the public network. I launched an instance of cirros and gave it ONLY the public network, and it got automatically assigned an ip of 192.168.1.50 (which is what I wanted). Here is where the problem comes...when I try to ping 8.8.8.8 from inside cirros I am not able to do so. Also, when I look at my router&#39;s (192.168.1.1) web management, I am not able to see this instance as connected in the list. My question is, if it was given an IP of 192.168.1.50 from Nova&#39;s dhcp server, then shouldn&#39;t my external router also detect this? I attached some relevant pics, but let me know if any info is missing.... http://postimg.org/image/ujtmy068d/ http://postimg.org/image/v6mm56eu5/ Thanks, Rohit" /> <meta name="keywords" content="rdo,Ask, OpenStack,forum,community,cloud,iaas" /> <meta name="referrer" content="always" /> <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" /> <link rel="shortcut icon" href="/m/os/media/images/favicon.gif?v=3" /> <link
+            rel="alternate"
+            type="application/rss+xml"
+            title="RSS feed from Ask OpenStack"
+            href="https://ask.openstack.org/en/feeds/rss/"
+        /> <link rel="stylesheet" href="/m/CACHE/css/28c7464885e3.css" type="text/css" /> <!--
+Copyright 2013 OpenStack Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+--> <link href='//fonts.googleapis.com/css?family=PT+Sans&amp;subset=latin' rel='stylesheet' type='text/css'> <link rel="canonical" href="https://ask.openstack.org/en/question/25960/cant-access-vms-externally/" /> <link rel="stylesheet" type="text/css" href="/m/default/media/js/wmd/wmd.css?v=3" /> <script type="text/javascript" src="/m/default/media/js/modernizr.custom.js?v=3"></script> <script type="text/javascript">
+    var askbot = {};
+    askbot['data'] = {};
+    askbot['data']['userIsAuthenticated'] = false;
+    askbot['data']['languageCode'] = 'en';
+    
+        askbot['data']['userReputation'] = 0;
+        askbot['data']['userIsReadOnly'] = false;//in principle we allow anon users to start posting
+    
+    askbot['urls'] = {};
+    askbot['settings'] = {};
+    askbot['messages'] = {};
+</script> <script type="text/javascript" src="/en/jsi18n/"></script> <script type="text/javascript">
+        /*<![CDATA[*/
+        //below is pure cross-browser javascript, no jQuery
+        askbot['data']['userIsThreadModerator'] = false;
+        askbot['data']['oldestAnswerId'] = -1;
+        
+        (function(){
+
+            var hasClass = function(node, selector) {
+                var classes = (" " + node.className + " ").split(' ');
+                for (var i = 0; i < classes.length; i++) {
+                    if (classes[i] === selector) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            var findChildrenByClassName = function(node, className) {
+                var nodes = [];
+                var walk = function(node) {
+                    if (hasClass(node, className)) {
+                        nodes.push(node);
+                    }
+                    if (node.childNodes) {
+                        for (var i=0; i < node.childNodes.length; i++) {
+                            walk(node.childNodes[i]);
+                        }
+                    }
+                };
+                walk(node);
+                return nodes;
+            };
+
+            var getTextContent = function(node) {
+                var text = node.innerText || node.textContent;
+                if (text === undefined) {
+                    return '';
+                } else {
+                    return text;
+                }
+            };
+
+            var hasAttribute = function(node, attrName) {
+                if (node.hasAttribute) {
+                    return node.hasAttribute(attrName);
+                } else {
+                    return (!(!(node.getAttribute(attrName))));
+                }
+            };
+
+            var findChildByAttribute = function(node, attrName, attrVal) {
+                var children = node.childNodes;
+                for (var i = 0; i < children.length; i++) {
+                    var child = children[i];
+                    if (child.getAttribute(attrName) === attrVal) {
+                        return child;
+                    }
+                };
+                return null;
+            };
+
+            var postIsComment = function(postId) {
+                if (document.getElementById('comment-' + postId)) {
+                    return true;
+                }
+                return false;
+            };
+
+            var removeNode = function(node) {
+                node.parentNode.removeChild(node);
+            };
+
+            var trim = function(text) {
+                return text.replace(/^\s+|\s+$/g, '');
+            };
+
+            var data = askbot['data'];
+            var isAuthorOfPost = function(post_id) {
+                return (data['user_posts'] && data['user_posts'][post_id]);
+            };
+
+            if (data['userIsAuthenticated']){
+                var votes = {};
+                
+                data['user_votes'] = votes;
+                var posts = {};
+                
+                data['user_posts'] = posts;
+            }
+
+            function render_vote_buttons(post_type, post_id){
+                var upvote_btn = document.getElementById(
+                    post_type + '-img-upvote-' + post_id
+                );
+                var downvote_btn = document.getElementById(
+                    post_type + '-img-downvote-' + post_id
+                );
+                if (data['userIsAuthenticated']){
+                    if (post_id in data['user_votes']){
+                        var vote = data['user_votes'][post_id];
+                        if (vote == -1){
+                            var btn = downvote_btn;
+                        } else if (vote == 1){
+                            var btn = upvote_btn;
+                        } else {
+                            return;
+                        }
+                        if (post_type == 'comment'){
+                            btn.className = btn.className + ' upvoted';
+                        } else {
+                            btn.className = btn.className + ' on';
+                        }
+                    }
+                }
+            }
+
+            function hide_convert_answer_links(post_id){
+                var id1 = 'post-' + post_id + '-convert';//for repost as Q comment
+                var repostAsQuestionComment = document.getElementById(id1);
+                var id2 = 'post-' + post_id + '-repost-as-comment-under-previous-answer';
+                var repostAsPrevAnsComment = document.getElementById(id2);
+                var extraOptsList = repostAsQuestionComment.parentNode;
+                var extraOpts = extraOptsList.parentNode;
+
+                var isAuthenticated = data['userIsAuthenticated'];
+                var isMod = data['userIsAdminOrMod'];
+                if (isAuthenticated && (isMod || isAuthorOfPost(post_id))) {
+                    //still may need to hide because answer may be too long
+                    var answer_id = 'post-id-' + post_id;
+                    var answer_container = document.getElementById(answer_id);
+                    var answerBody = findChildrenByClassName(answer_container, 'post-body')[0];
+                    //todo: this is not reliable
+                    var answerBodyNodes = answerBody.childNodes;
+                    var answerElement = answerBodyNodes[answerBodyNodes.length - 1];
+                    if (trim(getTextContent(answerElement)).length > askbot['data']['maxCommentLength']) {
+                        repostAsQuestionComment.parentNode.removeChild(repostAsQuestionComment);
+                        repostAsPrevAnsComment.parentNode.removeChild(repostAsPrevAnsComment);
+                    } else if (parseInt(post_id) === data['oldestAnswerId']) {
+                        repostAsPrevAnsComment.parentNode.removeChild(repostAsPrevAnsComment);
+                    }
+                } else {
+                    repostAsQuestionComment.parentNode.removeChild(repostAsQuestionComment);
+                    repostAsPrevAnsComment.parentNode.removeChild(repostAsPrevAnsComment);
+                }
+
+                //if the whole control is empty - remove it
+                if (extraOptsList.getElementsByTagName('li').length === 0) {
+                    extraOpts.parentNode.removeChild(extraOpts);
+                }
+            }
+
+            function hidePublishAnswerLink(postId) {
+                if (data['userIsThreadModerator'] === false) {
+                    //hide publish/unpublish answer links
+                    var answerId = 'post-' + postId + '-publish';
+                    var pubBtn = document.getElementById(answerId);
+                    pubBtn.parentNode.removeChild(pubBtn);
+                }
+            }
+
+            function remove_all_controls(post_id) {
+                var deleteBtn = document.getElementById('post-' + post_id + '-delete');
+                var controls = deleteBtn.parentNode;
+                if (controls.className == 'comment-content') {
+                    removeNode(deleteBtn);
+                    var convertLinks = findChildrenByClassName(controls, 'convert-comment');
+                    if (convertLinks.length) {
+                        removeNode(convertLinks[0]);
+                    }
+                    var editLinks = findChildrenByClassName(controls, 'edit');
+                    if (editLinks.length) {
+                        removeNode(editLinks[0]);
+                    }
+                } else {
+                    var buttons = controls.childNodes;
+                    var numButtons = buttons.length;
+                    for (var i = numButtons - 1; i >= 0; i--) {
+                        removeNode(buttons[i]);
+                    }
+                }
+            };
+                    
+
+            function render_post_controls(post_id){
+
+                //in this case remove all post controls
+                if (askbot['settings']['readOnlyModeEnabled'] === true) {
+                    remove_all_controls(post_id);
+                    return;
+                }
+
+                if (data['userIsAdminOrMod']){
+                    return;//all remaining functions stay on
+                }
+                if (data['user_posts'] && post_id in data['user_posts']){
+                    //todo: remove edit button from older comments
+                    return;
+                }
+                var deleteBtn = document.getElementById('post-' + post_id + '-delete');
+                var controls = deleteBtn.parentNode;
+                if (//maybe remove "delete" button
+                    (data['userReputation'] < 
+                    200) ||
+                    data['userIsReadOnly']
+                ) {
+                    removeNode(deleteBtn);
+                }
+
+                var canFlagPosts = data['userReputation'] >= 5;
+                var flags = findChildrenByClassName(controls, 'question-flag');
+                if (flags.length > 0 && !canFlagPosts) {
+                    removeNode(flags[0]);
+                }
+                var closeBtn = findChildrenByClassName(controls, 'question-close');
+                if (
+                    closeBtn.length === 1 &&
+                    (
+                        (data['userReputation'] < 200) ||
+                        data['userIsReadOnly']
+                    )
+                ) {
+                    removeNode(closeBtn[0]);
+                }
+                var repLow = (data['userReputation'] < 100);
+                if (//maybe remove "edit" button
+                    repLow || data['userIsReadOnly']//only authors edit comments
+                ){
+                    var edit_btn = document.getElementById(
+                        'post-' + post_id + '-edit'
+                    )
+                    edit_btn.parentNode.removeChild(edit_btn);
+                }
+                if (//maybe remove retag button
+                    (data['userReputation'] <
+                    50) ||
+                    data['userIsReadOnly']
+                ){
+                    var retagBtn = document.getElementById('retag');
+                    if (retagBtn) {
+                        retagBtn.parentNode.removeChild(retagBtn);
+                    }
+                }
+            }
+            function render_add_comment_button(post_id, extra_comment_count){
+                if (extra_comment_count > 0){
+                    var text = "see more comments";
+                } else {
+                    var text = "add a comment";
+                }
+                var add_comment_btn = document.getElementById('add-comment-to-post-' + post_id);
+                add_comment_btn.innerHTML = text;
+            }
+
+            function render_add_answer_button(){
+                var add_answer_btn = document.getElementById('add-answer-btn');
+                if (askbot['data']['userIsAuthenticated']){
+                    if (askbot['data']['userId'] == 5283){
+                        add_answer_btn.className += ' answer-own-question';
+                        add_answer_btn.setAttribute(
+                            'value',
+                            'Answer Your Own Question'
+                        )
+                    } else {
+                        add_answer_btn.setAttribute(
+                           'value',
+                           'Post Your Answer'
+                        )
+                    }
+                } else {
+                    add_answer_btn.setAttribute(
+                        'value',
+                        'Login/Signup to Post'
+                    );
+                }
+            }
+
+            function hide_convert_links() {
+                var isAuthenticated = data['userIsAuthenticated'];
+                var isMod = data['userIsAdminOrMod'];
+                if (isAuthenticated && isMod) {
+                    return;
+                }
+                var convertForms = findChildrenByClassName(document, 'convert-comment');
+                for (var i = 0; i < convertForms.length; i++) {
+                    //get comment id
+                    var form = convertForms[i];
+                    var idInput = findChildByAttribute(form, 'name', 'comment_id');
+                    var commentId = idInput.getAttribute('value');
+                    if (! isAuthorOfPost(commentId) ) {
+                        form.setAttribute('style', 'display:none;');
+                    }
+                }
+            }
+            
+            askbot['functions'] = askbot['functions'] || {};
+            askbot['functions']['renderPostVoteButtons'] = render_vote_buttons;
+            askbot['functions']['renderPostControls'] = render_post_controls;
+            askbot['functions']['renderAddCommentButton'] = render_add_comment_button;
+            askbot['functions']['renderAddAnswerButton'] = render_add_answer_button;
+            askbot['functions']['hideConvertLinks'] = hide_convert_links;
+            askbot['functions']['hideConvertAnswerLinks'] = hide_convert_answer_links;
+            askbot['functions']['hidePublishAnswerLink'] = hidePublishAnswerLink;
+        })();
+        /*]]>*/
+    </script> <script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-17511903-1']);
+  _gaq.push(['_setDomainName', 'openstack.org']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script> <meta name="google-site-verification" content="KopbwK-gwQmiTVr-iZbHQxBlM7gRjd3RkuIyGNi4bJE" /> </head> <body class="two-col question-page anon lang-en"> <div class="notify" style="display:none"> <div class="content-wrapper"> <a id="closeNotify" onclick="notify.close(true)"></a> </div> </div> <!-- template header.html --> <div 
+    id="header"
+    class="with-logo"
+> <div class="content-wrapper"> <div id="userToolsNav"> </div> <a id="logo" href="/en/questions/"><img 
+    src="/upfiles/open-stack-cloud-computing-logo-2.png" 
+    title="back to home page"
+    alt="Ask OpenStack logo"/> </a> <div id="metaNav"> <!--
+Copyright 2013 OpenStack Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+--> <a class="signin" href="/en/account/signin/?next=/en/question/25960/cant-access-vms-externally/">Hi there! Please sign in</a> <a 
+  id="navTags"
+  href="/en/tags/"
+  
+>tags</a> <a 
+  id="navUsers"
+  href="/en/users/"
+  
+>people</a> <a 
+  id="navBadges"
+  href="/en/badges/"
+  
+>badges</a> <a class="help" href="/en/help/" title="help">help</a> <span class="lang-nav dropdown-toggle"> <ul class="dropdown-menu"> <li> <a 
+                href="/zh/"
+            >Chinese</a> </li> </ul> <span>English</span> </span> </div> <div class="clean"></div> </div> </div> <!-- end template header.html --> <!-- template secondary_header.html --> <div id="secondaryHeader"> <div class="content-wrapper"> <form
+            
+                action="/en/questions/" id="searchForm"
+            
+            class="scopes-True-True-False"
+            method="get"> <table width="100%"> <tr> <td width="1"><a id="homeButton" href="/en/questions/"></a></td> <td width="1"> <div id="scopeNav"> <a class="scope-selector "
+            href="/en/questions/scope:all/sort:activity-desc/page:1/"
+        >ALL</a> <a class="scope-selector "
+            href="/en/questions/scope:unanswered/sort:answers-asc/page:1/"
+        >UNANSWERED</a> </div></td> <td width="*" class="search-bar"> <div 
+    id="searchBar"
+    class=""
+><input 
+        class="searchInput" 
+        type="text" 
+        autocomplete="off"
+        value="" 
+        name="query" 
+        id="keywords"
+    /><input type="submit" value="" name="search" class="searchBtn" /><input type="button"
+        value="X"
+        name="reset_query"
+        class="cancelSearchBtn"
+        
+            style="display: none;"
+        
+    /></div> </td> <td width="1"> <a
+        id="askButton"
+        class="button"
+        href="/en/questions/ask/"
+        >
+            Ask Your Question
+        </a> </td> </tr> </table> </form> </div> </div> <div class="content-wrapper"> <div id="ContentLeft"> <div class="post question" data-post-id="25960"> <div class="vote-buttons"> <div id="question-img-upvote-25960"
+    class="question-img-upvote post-vote upvote"> </div> <div 
+    id="question-vote-number-25960"
+    class="vote-number"
+    title="current number of votes"
+>0</div> <div
+    id="question-img-downvote-25960"
+    class="question-img-downvote post-vote downvote"> </div> <script type="text/javascript">
+    askbot['functions']['renderPostVoteButtons']('question', '25960');
+</script> <a class="twitter-share icon"
+        title="Share this content on twitter"
+    ></a> <a class="facebook-share icon"
+        title="Share this content on facebook"
+    ></a> <a class="linkedin-share icon"
+        title="Share this content on linkedin"
+    ></a> <a class="identica-share icon"
+        title="Share this content on identica"
+    ></a> <g:plusone size="small" count="false"></g:plusone> </div> <div id="post-id-25960" class="post-content"> <h1><a href="/en/question/25960/cant-access-vms-externally/">Can&#39;t access vm&#39;s externally</a></h1> <ul id="question-tags"
+    class="tags post-tags tags"
+> <li class="tag-left"><a
+            class="tag tag-right post-tag"
+            
+            href="/en/questions/scope:all/sort:activity-desc/tags:rdo/page:1/"
+            
+            rel="tag"
+            data-tag-name="rdo"
+        >rdo</a></li> </ul> <div class="clearfix"></div> <div class="post-body"> <div class="post-update-info-container"> <div class='post-update-info'> <p style="line-height:12px;">
+            
+            
+                asked
+            
+            
+                <strong><abbr class="timeago" title="2014-03-27 10:57:10 -0500">
+        2014-03-27 10:57:10 -0500
+    </abbr></strong> </p> <div class="user-card"> <a class="avatar-box"
+    href="/en/users/5283/rkrishnan2012/"
+><img class="gravatar" 
+    width="32" height="32"
+    src="//www.gravatar.com/avatar/67c846518617efd434d32fc7fca3829f?s=32&amp;d=mm&amp;r=PG"
+    title="rkrishnan2012" 
+    alt="rkrishnan2012 gravatar image" 
+/></a> <div class="user-info"> <a href="/en/users/5283/rkrishnan2012/">rkrishnan2012</a> <br/> <span class="reputation-score">1</span> <span class="badges" title=""> </span> </div> </div> </div> </div> <p>Hi,</p> <p>I wanted to host a web server inside of my openstack server (running behind my home router) so I followed this guide:
+openstack.redhat.com/Neutron_with_existing_external_network</p> <p>After that, I set the public network as "shared" (so my other projects can access it) and I set the private network as "shared". Then, I enabled DHCP on the public subnet so that my instances would get an IP if I hooked them up to the public network. I launched an instance of cirros and gave it ONLY the public network, and it got automatically assigned an ip of 192.168.1.50 (which is what I wanted).</p> <p>Here is where the problem comes...when I try to ping 8.8.8.8 from inside cirros I am not able to do so. Also, when I look at my router's (192.168.1.1) web management, I am not able to see this instance as connected in the list. My question is, if it was given an IP of 192.168.1.50 from Nova's dhcp server, then shouldn't my external router also detect this?</p> <p> I attached some relevant pics, but let me know if any info is missing....
+ http://postimg.org/image/ujtmy068d/ 
+ http://postimg.org/image/v6mm56eu5/</p> <p>Thanks,
+Rohit</p> </div> <div id="question-controls" class="post-controls"> <a id="post-25960-edit" class="question-edit" href="/en/questions/25960/edit/">edit</a> <script type="text/javascript">
+    var retagUrl = "/en/questions/25960/retag/";
+</script> <a id="retag" class="question-retag" href="/en/questions/25960/retag/">retag</a> <span
+        id="question-offensive-flag-25960" class="offensive-flag"
+        title="report as offensive (i.e containing spam, advertising, malicious text, etc.)"
+    > <a class="question-flag">flag offensive</a> </span> <a class="question-close" href="/en/questions/25960/close/">close</a> <a
+    id="post-25960-delete"
+    class="question-delete"
+>delete</a> <script type="text/javascript">
+    askbot['functions']['renderPostControls']('25960');
+</script> </div> <div class="comments empty" id="comments-for-question-25960"><div class="content"></div><div class="controls"><a id="add-comment-to-post-25960" class="button"></a><script type="text/javascript">
+        askbot['data']['comments-for-question-25960'] = {
+            truncated: false
+        };
+        askbot['functions']['renderAddCommentButton'](
+                                                '25960',
+                                                0
+                                            );
+    </script></div></div> </div> </div> <form
+        id="fmanswer"
+        action="/en/questions/25960/answer/"
+        method="post"
+        ><div style='display:none'><input type='hidden' name='csrfmiddlewaretoken' value='9TKNIcRe2OjTXyD2bsxFhb0sLxL6eddx' /></div> <div style="clear:both"></div> <div> <h2>
+                        
+                            Be the first one to answer this question!
+                        
+                    </h2> </div> <p class="message"> <span class="strong big">Please start posting anonymously</span> - your entry will be published after you log in or create a new account.
+            
+                
+            </p> <div class="folded-editor" tabindex="6"> <p class="prompt"><a>Add Answer</a></p> <div class="editor-proper"> <div class="wmd-container"> <div id="wmd-button-bar" class="wmd-panel"></div> <textarea rows="10" cols="40" name="text" id="editor"></textarea> </div> <div class="form-item"> <label for="editor" class="form-error"></label> <p class="editor-status action-status"><span></span></p> </div> <div class="preview-toggle"> <span 
+            id="pre-collapse" 
+            title="Toggle the real time Markdown editor preview"
+        >
+            [hide preview]
+        </span> </div> <div class="clearfix"></div> <div id="previewer" class="wmd-preview"></div> <input id="add-answer-btn" type="submit" class="submit after-editor" style="float:left"/> <script type="text/javascript">
+                        askbot['functions']['renderAddAnswerButton']();
+                    </script> </div> </div> </form> </div> <div id="ContentRight"> <div class="box"> <a href="https://wiki.openstack.org/wiki/Community/AskModerators">Resources for moderators</a> <hr /> </div> <div class="box vote-buttons"> <h2>Question Tools</h2> <a class="button followed"
+            alt="click to follow ">
+            Follow
+        </a> <div class="clearfix"></div> <div id="favorite-number" class="favorite-number">
+        
+        
+            1 follower
+        
+    </div> <div class="notify-sidebar"> <p class="rss"> <a
+                href="https://ask.openstack.org/feeds/question/25960"
+                title="subscribe to the rss feed"
+                >subscribe to rss feed</a> </p> </div> </div> <div class="clearfix"></div> <div class="box statsWidget"> <div class="clearfix"></div> <h2>Stats</h2> <p>
+        Asked: <strong><abbr class="timeago" title="2014-03-27 10:57:10 -0500">
+        2014-03-27 10:57:10 -0500
+    </abbr></strong> </p> <p> 
+        Seen: <strong>0 times</strong> </p> <p>
+        Last updated: <strong title="2014-03-27 10:57:10.282780">45 mins ago</strong> </p> </div> <div class="box"> <h2>Related questions</h2> <div class="questions-related"> <p> <a href="/en/question/10810/in-ethernet-device-name-causing-packstack-parse-error/">&#39;.&#39; in ethernet device name causing packstack parse error</a> </p> <p> <a href="/en/question/25029/openstack-packstack-all-in-one-neutron-network-with-2-cables/">OpenStack PackStack All-in-one Neutron Network with 2 cables</a> </p> <p> <a href="/en/question/6476/how-to-add-heat-and-ceilometer-in-existing-openstack-setup/">how to add heat and ceilometer in existing openstack setup</a> </p> <p> <a href="/en/question/12373/havana-instance-doesnt-get-ip/">Havana instance doesn&#39;t get IP</a> </p> <p> <a href="/en/question/9804/install-horizon-and-novnc-only/">Install horizon and novnc only [closed]</a> </p> <p> <a href="/en/question/10520/rdo-ceilometer-installation-problem/">rdo ceilometer installation problem</a> </p> <p> <a href="/en/question/12075/havana-baremetal-failure-during-instance-launch/">Havana baremetal failure during instance launch</a> </p> <p> <a href="/en/question/7939/solved-install-error-with-config_mysql_installn/">Solved: Install error with CONFIG_MYSQL_INSTALL=n [closed]</a> </p> <p> <a href="/en/question/25203/unable-to-run-an-instance-from-demo-status-queued-then-killed/">Unable to run an Instance from demo - status queued then killed</a> </p> <p> <a href="/en/question/9537/docker-virt-driver-support/">docker VIRT DRIVER Support</a> </p> </div> </div> </div> </div> <!--
+Copyright 2013 OpenStack Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may
+not use this file except in compliance with the License. You may obtain
+a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations
+under the License.
+--> <div class="clearfix"></div> <div class="content-wrapper"> <div id="footer"> <div class="span-8"> <h3>Feedback About This Page</h3> <ul> <li><a href="https://bugs.launchpad.net/openstack-community/+bugs?field.tag=askproject">Report a bug</a></li> </ul> </div> <div class="span-4"> <h3>OpenStack</h3> <ul> <li><a href="http://www.openstack.org/projects/">Projects</a></li> <li><a href="http://www.openstack.org/openstack-security/">OpenStack Security</a></li> <li><a href="http://www.openstack.org/projects/openstack-faq/">Common Questions</a></li> <li><a href="http://www.openstack.org/blog/">Blog</a></li> </ul> </div> <div class="span-4"> <h3>Community</h3> <ul> <li><a href="http://www.openstack.org/community/">User Groups</a></li> <li><a href="http://www.openstack.org/events/">Events</a></li> <li><a href="http://www.openstack.org/jobs/">Jobs</a></li> <li><a href="http://www.openstack.org/companies/">Companies</a></li> <li><a href="https://wiki.openstack.org/wiki/How_To_Contribute">Contribute</a></li> </ul> </div> <div class="span-4"> <h3>Documentation</h3> <ul> <li><a href="http://docs.openstack.org/">OpenStack Manuals</a></li> <li><a href="http://www.openstack.org/software/start/">Getting Started</a></li> <li><a href="http://api.openstack.org/">API Documentation</a></li> <li><a href="https://wiki.openstack.org/">Wiki</a></li> </ul> </div> <div class="span-4 last"> <h3>Branding &amp; Legal</h3> <ul> <li><a href="http://www.openstack.org/brand/">Logos &amp; Guidelines</a></li> <li><a href="http://www.openstack.org/brand/openstack-trademark-policy/">Trademark Policy</a></li> <li><a href="http://www.openstack.org/privacy/">Privacy Policy</a></li> <li><a href="https://wiki.openstack.org/wiki/CLA">OpenStack CLA</a></li> </ul> </div> <div class="clearfix"></div> <p>OpenStack is a trademark of OpenStack Foundation. This site is powered by <a href="http://askbot.com">Askbot</a>. (<a href="https://www.gnu.org/licenses/gpl-3.0.html">GPLv3</a> or later; <a href="https://github.com/ASKBOT/askbot-devel">source</a>). Content on this site is licensed under a <a href="http://creativecommons.org/licenses/by/3.0/">CC-BY 3.0</a> license.</p> </div> </div> <div id="no-javascript"> <noscript class="noscript">
+        Please note: Ask OpenStack requires javascript to work properly, please enable javascript in your browser, <a href="https://www.google.com/support/bin/answer.py?answer=23852">here is how</a> </noscript> <script type="text/javascript">
+        //IE fix to hide the red margin
+        var noscript = document.getElementsByTagName('noscript')[0];
+        noscript.style.padding = '0px';
+        noscript.style.backgroundColor = 'transparent';
+    </script> </div> <script type="text/javascript">
+    askbot['urls']['mark_read_message'] = '/en/messages/markread/';
+    askbot['urls']['get_tags_by_wildcard'] = '/en/get-tags-by-wildcard/';
+    askbot['urls']['get_tag_list'] = '/en/get-tag-list/';
+    askbot['urls']['follow_user'] = '/followit/follow/user/{{userId}}/';
+    askbot['urls']['unfollow_user'] = '/followit/unfollow/user/{{userId}}/';
+    askbot['urls']['user_signin'] = '/en/account/signin/';
+    askbot['urls']['getEditor'] = '/en/get-editor/';
+    askbot['urls']['apiGetQuestions'] = '/en/api/get_questions/';
+    askbot['urls']['ask'] = '/en/questions/ask/';
+	askbot['urls']['questions'] = '/en/questions/';
+    askbot['settings']['groupsEnabled'] = false;
+    askbot['settings']['static_url'] = '/m/';
+    askbot['settings']['minSearchWordLength'] = 4;
+    askbot['settings']['mathjaxEnabled'] = false;
+    askbot['settings']['sharingSuffixText'] = '';
+    askbot['data']['maxCommentLength'] = 300;
+    askbot['settings']['editorType'] = 'markdown';
+    askbot['settings']['commentsEditorType'] = 'rich-text';
+    askbot['messages']['askYourQuestion'] = 'Ask Your Question';
+    
+        askbot['settings']['allowedUploadFileTypes'] = [
+            "jpg", "jpeg", "gif", "bmp", "png", "tiff"
+        ];
+    
+    askbot['data']['haveFlashNotifications'] = false;
+    askbot['data']['activeTab'] = 'questions';
+    
+        askbot['data']['searchUrl'] = '';
+    
+</script> <script type="text/javascript" src="/m/CACHE/js/5be667b0e09a.js"></script> <script type="text/javascript">
+    /*<![CDATA[*/
+    $('.mceStatusbar').remove();//a hack to remove the tinyMCE status bar
+    $(document).ready(function(){
+        // focus input on the search bar endcomment
+        var activeTab = askbot['data']['activeTab'];
+        if (inArray(activeTab, ['users', 'questions', 'tags', 'badges'])) {
+            var searchInput = $('#keywords');
+        } else if (activeTab === 'ask') {
+            var searchInput = $('#id_title');
+        } else {
+            var searchInput = undefined;
+            animateHashes();
+        }
+
+        if (searchInput) {
+            searchInput.focus();
+            putCursorAtEnd(searchInput);
+        }
+
+        var haveFullTextSearchTab = inArray(activeTab, ['questions', 'badges', 'ask']);
+        var haveUserProfilePage = $('body').hasClass('user-profile-page');
+        if ((haveUserProfilePage || haveFullTextSearchTab) && searchInput.length) {
+            var search = new FullTextSearch();
+            askbot['controllers'] = askbot['controllers'] || {};
+            askbot['controllers']['fullTextSearch'] = search;
+            search.setSearchUrl(askbot['data']['searchUrl']);
+            if (activeTab === 'ask') {
+                search.setAskButtonEnabled(false);
+            }
+            search.decorate(searchInput);
+        } else if (activeTab === 'tags') {
+            var search = new TagSearch();
+            search.decorate(searchInput);
+        }
+
+        if (askbot['data']['userIsAdminOrMod']) {
+            $('body').addClass('admin');
+        }
+        if (askbot['settings']['groupsEnabled']) {
+            askbot['urls']['add_group'] = "/en/add-group/";
+            var group_dropdown = new GroupDropdown();
+            $('.dropdown').append(group_dropdown.getElement());
+        }
+        var userRep = $('#userToolsNav .reputation');
+        if (userRep.length) {
+            var showPermsTrigger = new ShowPermsTrigger();
+            showPermsTrigger.decorate(userRep);
+        }
+    });
+    if (askbot['data']['haveFlashNotifications']) {
+        $('#validate_email_alert').click(function(){notify.close(true)})
+        notify.show();
+    }
+    $('abbr.timeago').timeago();
+    /*]]>*/
+</script> <script type='text/javascript'>
+        
+        
+        var codeFriendlyMarkdown = true;
+        
+        var maxCommentLength = 300;
+        askbot['urls']['postComments'] = '/en/post_comments/';
+        askbot['urls']['editComment'] = '/en/edit_comment/';
+        askbot['urls']['deleteComment'] = '/en/comment/delete/';
+        askbot['urls']['convertComment'] = '/en/comment/convert/';
+        askbot['urls']['getComment'] = '/en/comment/get_text/';
+        askbot['urls']['saveDraftAnswer'] = '/en/save-draft-answer/';
+        askbot['urls']['vote_url'] = '/en/vote'
+        askbot['urls']['user_signin'] = '/en/account/signin/';
+        askbot['urls']['swap_question_with_answer'] = '/en/swap-question-with-answer/';
+        askbot['urls']['upvote_comment'] = '/en/comment/upvote/';
+        askbot['urls']['delete_post'] = '/en/post/delete/';
+        askbot['urls']['get_html_template'] = '/en/get-html-template/';
+        askbot['urls']['getGroupsList'] = '/en/get-groups-list/';
+        askbot['urls']['publishAnswer'] = '/en/answer/publish/';
+        askbot['data']['userIsThreadModerator'] = false;
+        askbot['data']['questionAuthorId'] = 5283;
+        askbot['data']['threadIsClosed'] = false;
+        askbot['data']['answersSortTab'] = 'votes';
+        askbot['data']['questionId'] = 25960;
+        askbot['data']['threadSlug'] = 'cant-access-vms-externally';
+        askbot['messages']['addComment'] = 'add a comment';
+        askbot['messages']['userNamePrompt'] = 'User name:';
+        askbot['messages']['userEmailPrompt'] = 'Email address:';
+        
+        askbot['settings']['saveCommentOnEnter'] = false;
+        askbot['settings']['tagSource'] = 'user-input';
+        askbot['settings']['enableSharingGoogle'] = true;
+        askbot['settings']['enableEmailAlerts'] = true;
+    </script> <script type="text/javascript">
+    
+    askbot['settings']['tagsAreRequired'] = true
+    askbot['settings']['maxTagLength'] = 20;
+    askbot['messages']['maxTagLength'] = "each tag must be shorter than 20 characters";
+    askbot['settings']['maxTagsPerPost'] = 5;
+    askbot['messages']['maxTagsPerPost'] = "please use 5 tags or less";
+    askbot['messages']['tagLimits'] = "please use up to 5 tags, less than 20 characters each";
+    askbot['urls']['upload'] = '/en/upload/';
+    askbot['settings']['minTitleLength'] = 10;
+    askbot['settings']['minQuestionBodyLength'] = 10;
+    askbot['settings']['minAnswerBodyLength'] = 10;
+    askbot['settings']['minCommentBodyLength'] = 10;
+    askbot['settings']['tag_editor'] = '{\u0022tag_forbidden_first_chars\u0022: \u0022#\u0022, \u0022max_tag_length\u0022: 20, \u0022tag_regex\u0022: \u0022^\u005C\u005Cw[\u005C\u005Cw+.#\u002D]+$\u0022, \u0022max_tags_per_post\u0022: 5, \u0022messages\u0022: {\u0022wrong_first_char\u0022: \u0022# is not a valid character at the beginning of tags, use only letters and numbers\u0022, \u0022wrong_chars\u0022: \u0022please use letters, numbers and characters \u005C\u0022\u002D+.#\u005C\u0022\u0022, \u0022required\u0022: \u0022tags are required\u0022}, \u0022tags_are_required\u0022: true, \u0022force_lowercase_tags\u0022: true}';
+    askbot['settings']['tinyMCEPlugins'] = JSON.parse('[]');
+</script> <script type='text/javascript'>
+    (function() {
+        //make images always fit the screen
+        var images = $('.question-page .post-body img');
+        //these breakpoints must match those in css
+        //for explanation see utils.js:LimitedWidthImage
+        var breakpoints = [
+            [980, undefined],
+            [800, 55]
+        ];
+        var maxWidth = 685;
+        images.each(function(idx, item) {
+            var img = new LimitedWidthImage(breakpoints, maxWidth);
+            img.decorate($(item));
+        });
+    })();
+</script> <script type="text/javascript" src="/m/CACHE/js/6661d536fd47.js"></script> <script type="text/javascript">
+    // define reputation needs for comments
+    askbot['urls']['getPostHtml'] = '/en/get-post-html/';
+    $(document).ready(function(){
+        $("#nav_questions").attr('className',"on");
+        $("#" + askbot['data']['answersSortTab']).attr('className',"on");
+        
+        Vote.init(
+            askbot['data']['questionId'],
+            askbot['data']['threadSlug'],
+            askbot['data']['questionAuthorId'],
+            askbot['data']['userId']
+        );
+        
+        if ((askbot['data']['threadIsClosed'] === false) && askbot['data']['userIsAuthenticated']) {
+            initEditor();
+        }
+        
+        lanai.highlightSyntax();
+        $('#btLogin').bind('click', function(){
+            window.location.href='/en/account/signin/';
+        });
+        if (window.location.hash === 'fmanswer'){
+            $('#fmanswer textarea').focus();
+        }
+
+        if (askbot['settings']['enableSharingGoogle']) {
+            $.getScript("//apis.google.com/js/plusone.js");
+        }
+
+        if (askbot['data']['userId'] === askbot['data']['questionAuthorId']) {
+            $("#fmanswer_button").click(function() {
+                $("#fmanswer").show();
+                $("#fmanswer_button").hide();
+            });
+        }
+
+        if (askbot['data']['userIsAuthenticated']) {
+            var draftHandler = new DraftAnswer();
+            draftHandler.setThreadId(6366);
+            draftHandler.decorate($(document));
+        }
+
+        var expanders = $('.expander');
+        expanders.each(function(idx, item) {
+            var expanderElement = $(item);
+            var post = expanderElement.closest('.post,.comment');
+            if (post.length === 1) {
+                var expander = new PostExpander();
+                expander.setPostId(post.data('postId'));
+                expander.decorate(expanderElement);
+            }
+        });
+    });
+
+    $(window).bind('hashchange', animate_hashes);
+
+    function animate_hashes(){
+      var id_value = window.location.hash;
+      if (id_value != ""){
+        var previous_color = $(id_value).css('background-color');
+        $(id_value).css('backgroundColor', '#FFF8C6');
+        $(id_value).animate(
+            {backgroundColor: '#ff7f2a'}, 1000
+        ).animate({backgroundColor: '#FFF8C6'}, 1000, function(){
+            $(id_value).css('backgroundColor', previous_color);
+        });
+      }
+    }
+
+    
+    function initEditor(){
+        $('#editor').TextAreaResizer();
+        //highlight code synctax when editor has new text
+        $("#editor").typeWatch({highlight: false, wait: 3000,
+                         captureLength: 5, callback: lanai.highlightSyntax});
+                         
+        var display = true;
+        var txt = "[hide preview]";
+        $('#pre-collapse').text(txt);
+        $('#pre-collapse').bind('click', function(){
+            txt = display ? "[show preview]" : "[hide preview]";
+            display = !display;
+            $('#previewer').toggle();
+            $('#pre-collapse').text(txt);
+        });
+        setupFormValidation(
+            $("#fmanswer"),
+            CPValidator.getAnswerFormRules(),
+            CPValidator.getAnswerFormMessages()
+        );
+    }
+    (function() {
+        var editorBox = $('.folded-editor');
+        if (editorBox.length) {
+            var foldedEditor = new FoldedEditor();
+            foldedEditor.decorate(editorBox);
+        }
+    })();
+</script> <script type="text/javascript">
+            for (url_name in askbot['urls']){
+                askbot['urls'][url_name] = cleanUrl(askbot['urls'][url_name]);
+            }
+        </script> </body> </html>
