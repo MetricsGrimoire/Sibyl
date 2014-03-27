@@ -99,6 +99,44 @@ class TestQuestionHTML(unittest.TestCase):
 
         self.assertEqual(6, len(answers))
 
+    def test_tags(self):
+        # function that tests number of tags and tags per file
+        TAGS_FILE_PATH = [u'rdo', u'Ask', u' OpenStack', u'forum', u'community', u'cloud', u'iaas']
+        TAGS_FILE_PATH_6_ANSWERS = [u'cinder', u'migrated', u'Ask', u' OpenStack', u'forum', u'community', u'cloud', u'iaas']
+        TAGS_FILE_PATH_0_ANSWERS = [u'python', u'keystone#openstack', u'error401', u'Ask', u' OpenStack', u'forum', u'community', u'cloud', u'iaas']
+        
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_0_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        tags = questionHTML.getTags() #fake question id
+        self.assertEqual(7, len(tags))
+        self.assertEqual(TAGS_FILE_PATH, tags)
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_6_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        tags = questionHTML.getTags() #fake question id
+        self.assertEqual(8, len(tags))
+        self.assertEqual(TAGS_FILE_PATH_6_ANSWERS, tags)
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH)
+        questionHTML.bsoup = BeautifulSoup(html)
+        tags = questionHTML.getTags() #fake question id
+        self.assertEqual(9, len(tags))
+        self.assertEqual(TAGS_FILE_PATH_0_ANSWERS, tags)
+
+
+
 
 if __name__ == "__main__":
     unittest.main()
