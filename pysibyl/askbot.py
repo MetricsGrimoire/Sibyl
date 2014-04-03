@@ -48,7 +48,7 @@ class QuestionsIter(object):
     def _count_q_pages(self):
         # count total number of question pages to iterate through
         time.sleep(5)
-        stream = requests.get(self.url + "/api/v1/questions/?page=1")
+        stream = requests.get(self.url + "/api/v1/questions/?page=1", verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
@@ -73,7 +73,7 @@ class QuestionsIter(object):
         questions = []  # list of question identifiers
 
         time.sleep(5)
-        stream = requests.get(self.url + "/api/v1/questions/?page=" + str(self.current))
+        stream = requests.get(self.url + "/api/v1/questions/?page=" + str(self.current), verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
@@ -185,7 +185,8 @@ class Askbot(object):
 
     def get_user(self, user_id):
         time.sleep(5)
-        stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/")
+        stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
+        print(self.url + "/api/v1/users/" + str(user_id) + "/")
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         user = parser.data
@@ -209,7 +210,7 @@ class QuestionHTML(Askbot):
         
         self.url = url
         time.sleep(5)
-        self.bsoup = BeautifulSoup(requests.get(url).text)
+        self.bsoup = BeautifulSoup(requests.get(url, verify=False).text)
         self.tags = []
 
     def getBody(self):
