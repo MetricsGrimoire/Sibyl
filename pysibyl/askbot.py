@@ -47,7 +47,6 @@ class QuestionsIter(object):
 
     def _count_q_pages(self):
         # count total number of question pages to iterate through
-        time.sleep(5)
         stream = requests.get(self.url + "/api/v1/questions/?page=1", verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
@@ -72,7 +71,6 @@ class QuestionsIter(object):
         # returns next slice of question identifiers
         questions = []  # list of question identifiers
 
-        time.sleep(5)
         stream = requests.get(self.url + "/api/v1/questions/?page=" + str(self.current), verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
@@ -123,6 +121,10 @@ class Askbot(object):
         # Retrieving information not available through the v1 askbot API
         self.questionHTML = QuestionHTML(dbquestion.url)
         dbquestion.body = self.questionHTML.getBody()
+
+        # Retrieving creation date. Issue found in https://bugs.launchpad.net/openstack-community/+bug/1306558
+        # This is a work around, or at least in the following, this will help to double check the creation date
+        dbquestion.added_at = self.questionHTML.getDate()
 
         return dbquestion
 
@@ -184,7 +186,6 @@ class Askbot(object):
 
 
     def get_user(self, user_id):
-        time.sleep(5)
         stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
         print(self.url + "/api/v1/users/" + str(user_id) + "/")
         parser = JSONParser(unicode(stream.text))
@@ -209,9 +210,20 @@ class QuestionHTML(Askbot):
     def __init__(self, url):
         
         self.url = url
-        time.sleep(5)
         self.bsoup = BeautifulSoup(requests.get(url, verify=False).text)
         self.tags = []
+
+    def getDate(self):
+        # Returns the date of creation of question. 
+        # The API is wrongly assigning a date (seems to be random one)
+        # More info at: https://bugs.launchpad.net/openstack-community/+bug/1306558
+        stats = self.bsoup.findAll(attrs={"class" : re.compile("^box statsWidget")})
+        stats = stats[0] # only 1 item in the list
+
+        asked_date = stats.findAll(attrs={"class" : "timeago"})
+        asked_date = asked_date[0].text
+
+        return asked_date
 
     def getBody(self):
         # Returns body question message
