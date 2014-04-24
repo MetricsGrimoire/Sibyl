@@ -31,7 +31,7 @@ import requests
 
 from BeautifulSoup import BeautifulSoup
 
-from pysibyl.db import Base, People, Questions, Tags, QuestionsTags, Answers
+from pysibyl.db import Base, People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
 
@@ -181,13 +181,20 @@ class Askbot(object):
         # TODO: this does not really return the list of answers
         # of a given dbquestion object. This actually returns
         # the answers that at the point of analysis is in memory
-        
         return self.questionHTML.getAnswers(dbquestion.question_identifier) 
 
 
+    def question_comments(self, dbquestion):
+        # coments associated to that question
+        return self.questionHTML.getComments("question", dbquestion.question_identifier)
+
+    def answer_comments(self, dbanswer):
+        # comments associated to that answer
+        return self.questionHTML.getComments("answer", dbanswer.identifier)
+
     def get_user(self, user_id):
         stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
-        print(self.url + "/api/v1/users/" + str(user_id) + "/")
+        #print(self.url + "/api/v1/users/" + str(user_id) + "/")
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         user = parser.data
@@ -312,3 +319,51 @@ class QuestionHTML(Askbot):
 
         return all_answers
 
+    def getComments(self, typeof, identifier):
+        # typeof: "question" or "answer"
+        # identifier: question or answer identifier
+
+        div_id = ""
+        if typeof == "question":
+            div_id = "comments-for-question-" + str(identifier)
+        elif typeof == "answer":
+            div_id = "comments-for-answer-" + str(identifier)
+        else:
+            return []
+
+        comments_div = stats = self.bsoup.findAll(attrs={"id" : div_id})
+        comments_div = comments_div[0]
+     
+        comments = comments_div.findAll(attrs={"class" : "comment"})
+            
+        dbcomments = []
+        for comment in comments:
+            dbcomment = Comments()
+
+            # question or answer identifier
+            if typeof == "question":
+                dbcomment.question_identifier = identifier
+            if typeof == "answer": 
+                dbcomment.answer_identifier = identifier
+            # body of comment
+            body = comment.findAll(attrs={"class" : "comment-body"})
+            body = body[0] #only 1 item in the list
+            text = body.text
+            dbcomment.body = text
+     
+            # user identifier
+            user = comment.findAll(attrs={"class" : "author"})
+            user = user[0]
+            href = user['href']
+            # link similar to: /en/users/0000/username/ in OpenStack askbot
+            user_identifier = href.split('/')[3]
+            dbcomment.user_identifier = user_identifier
+       
+            # time of comment
+            comment_date = comment.findAll(attrs={"class" : "timeago"})
+            comment_date = comment_date[0].text
+            dbcomment.submitted_on = comment_date
+
+            dbcomments.append(dbcomment)
+
+        return dbcomments

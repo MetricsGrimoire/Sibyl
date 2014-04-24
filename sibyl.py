@@ -87,12 +87,23 @@ def askbot_parser(session, url):
             session.add(dbquestion)
             session.commit()
     
+            #Comments
+            comments = askbot.question_comments(dbquestion)
+            for comment in comments:
+                session.add(comment)
+                session.commit()
+
             #Answers
             answers = askbot.answers(dbquestion)
             for answer in answers:
                 users_id.append(answer.user_identifier)
                 session.add(answer)
                 session.commit()
+                # comments per answer
+                comments = askbot.answer_comments(answer)
+                for comment in comments:
+                    session.add(comment)
+                    session.commit()
 
             #Tags
             tags, questiontags = askbot.tags(dbquestion)

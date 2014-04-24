@@ -108,10 +108,10 @@ class Comments(Base):
     __tablename__ = 'comments'
 
     id = Column(Integer, primary_key=True)
-    question_id = Column(Integer)
-    answer_id = Column(Integer)
+    question_identifier = Column(Integer)
+    answer_identifier = Column(Integer)
     body = Column(Text())
-    user_id = Column(Integer)
+    user_identifier = Column(Integer)
     submitted_on = Column(DateTime, nullable=False)
 
 
