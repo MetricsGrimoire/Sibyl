@@ -135,7 +135,46 @@ class TestQuestionHTML(unittest.TestCase):
         self.assertEqual(9, len(tags))
         self.assertEqual(TAGS_FILE_PATH_0_ANSWERS, tags)
 
+    def test_comments(self):
+        # function that tests comments
+        QID_FILE_PATH = 25627
+        AID_FILE_PATH = 25632
+        QID_FILE_PATH_0_ANSWERS = 25960
+        QID_FILE_PATH_6_ANSWERS = 21353
+        AID_FILE_PATH_6_ANSWERS = [25941, 25667, 21357, 21356, 21355, 21354]
 
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH)
+        questionHTML.bsoup = BeautifulSoup(html)
+        comments = questionHTML.getComments("question", QID_FILE_PATH)
+        self.assertEqual(1, len(comments))
+        comments = questionHTML.getComments("answer", AID_FILE_PATH)
+        self.assertEqual(0, len(comments))
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_6_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        comments = questionHTML.getComments("question", QID_FILE_PATH_6_ANSWERS)
+        self.assertEqual(0, len(comments))
+        for aid in AID_FILE_PATH_6_ANSWERS:
+            comments = questionHTML.getComments("answer", aid)
+            self.assertEqual(0, len(comments))
+
+        # Fake URL
+        URL = "http://www.example.com/"
+        questionHTML = QuestionHTML(URL)
+        # Overwritting variable bsoup that contains HTML
+        html = self._read_file(FILE_PATH_0_ANSWERS)
+        questionHTML.bsoup = BeautifulSoup(html)
+        comments = questionHTML.getComments("question", QID_FILE_PATH_0_ANSWERS)
+        self.assertEqual(0, len(comments))
+                 
 
 
 if __name__ == "__main__":
