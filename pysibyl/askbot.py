@@ -331,7 +331,7 @@ class QuestionHTML(Askbot):
         else:
             return []
 
-        comments_div = stats = self.bsoup.findAll(attrs={"id" : div_id})
+        comments_div = self.bsoup.findAll(attrs={"id" : div_id})
         comments_div = comments_div[0]
      
         comments = comments_div.findAll(attrs={"class" : "comment"})
