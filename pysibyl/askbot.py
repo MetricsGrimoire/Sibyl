@@ -112,11 +112,79 @@ class Askbot(object):
         # Iterator through the whole set of questions
         return QuestionsIter(self.url)
 
+    def remove_question(self, dbquestion, session):
+        # This function removes all information in cascade for
+        # info found in dbquestion. Given that we're using Myisam
+        # the cascade removal is manually done.
+        
+        # removing question
+        query_question = session.query(Questions).\
+            filter(Questions.question_identifier==int(dbquestion.question_identifier))
+        question = query_question.first()
+        session.delete(question)
+
+        # removing tags
+        query_tags = session.query(QuestionsTags).\
+            filter(QuestionsTags.question_identifier==int(dbquestion.question_identifier))
+        tags = query_tags.all()
+        for tag in tags:
+            session.delete(tag)
+
+        # removing comments
+        query_comments = session.query(Comments).\
+            filter(Comments.question_identifier==int(dbquestion.question_identifier))
+        comments = query_comments.all()
+        for comment in comments:
+            session.delete(comment)
+
+        # removing answers and their comments
+        query_answers = session.query(Answers).\
+            filter(Answers.question_identifier==int(dbquestion.question_identifier))
+        answers = query_answers.all()
+        answer_id = 0
+        for answer in answers:
+            answer_id = answer.identifier
+            session.delete(answer)
+            query_comments = session.query(Comments).\
+                filter(Comments.answer_identifier==int(answer_id))
+            comments = query_comments.all()
+            for comment in comments:
+                session.delete(comment)
+        session.commit()
+
+    def is_question_updated(self, dbquestion, session):
+        # This function checks if the dbquestion is updated
+        # according to the information found in the database
+        # and the "last_activity_at" field
+        
+        updated = True
+        found = True
+
+        query_question = session.query(Questions).\
+            filter(Questions.question_identifier==int(dbquestion.question_identifier))
+        questions = query_question.all()
+
+        if len(questions) == 0:
+            #question not found in db
+            print "    * Question not found in db"
+            found = False
+            updated = False
+
+        else:
+            # question in db
+            question = questions[0]
+            # question data from API
+            date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%d %H:%M:%S")
+            if question.last_activity_at < date:
+                #question not updated in db
+                print "    * Question not updated in db"
+                updated = False
+
+        return updated, found
+
     def get_question(self, dbquestion):
         # This function parses extra information only found in the
         # HTML and not throuhg the API v1.
-
-        print "Analyzing: " + dbquestion.url
 
         # Retrieving information not available through the v1 askbot API
         self.questionHTML = QuestionHTML(dbquestion.url)

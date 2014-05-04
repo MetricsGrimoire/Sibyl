@@ -82,6 +82,23 @@ def askbot_parser(session, url):
         for dbquestion in questionset:
             # TODO: at some point the questions() iterator should
             # provide each "question" and not a set of them
+            print "Analyzing: " + dbquestion.url
+
+            updated, found = askbot.is_question_updated(dbquestion, session)
+            if found and updated:
+                # no changes needed
+                print "    * NOT updating information for this question"
+                continue
+
+            if found and not updated:
+                # So far using the simpliest approach: remove all info related to
+                # this question and re-insert values: drop question, tags, 
+                # answers and comments for question and answers.
+                # This is done in this way to avoid several 'if' clauses to 
+                # control if question was found/not found or updated/not updated
+                print "Restarting dataset for this question"
+                askbot.remove_question(dbquestion, session)
+
             dbquestion = askbot.get_question(dbquestion)
             users_id.append(dbquestion.author_identifier)
             session.add(dbquestion)
