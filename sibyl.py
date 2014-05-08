@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # Copyright (C) 2014 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
