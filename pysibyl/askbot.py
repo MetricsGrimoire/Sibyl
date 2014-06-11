@@ -262,6 +262,7 @@ class Askbot(object):
 
     def get_user(self, user_id):
         stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
+        print stream.url
         #print(self.url + "/api/v1/users/" + str(user_id) + "/")
         parser = JSONParser(unicode(stream.text))
         parser.parse()
@@ -279,11 +280,14 @@ class Askbot(object):
 
 
 class QuestionHTML(Askbot):
-    """Question HTML parser.
-    """
+    """Question HTML parser"""
+
+    # OpenStack user links: /en/users/0000/username/
+    # Puppet user links: /users/0000/username/
+    USER_HREF_REGEXP = "^.*/users/([0-9]+)/.+$"
+
 
     def __init__(self, url):
-        
         self.url = url
         self.bsoup = BeautifulSoup(requests.get(url, verify=False).text)
         self.tags = []
@@ -367,8 +371,9 @@ class QuestionHTML(Askbot):
             user_name = user_links[1].text
             link = user_links[1]
             href = link['href']
-            # link similar to: /en/users/0000/username/ in OpenStack askbot
-            user_identifier = href.split('/')[3]
+
+            m = re.match(self.USER_HREF_REGEXP, href)
+            user_identifier = m.group(1)
 
             # Obtain votes 
             votes = answer.findAll(attrs={"class" : "vote-number"})
@@ -418,15 +423,16 @@ class QuestionHTML(Askbot):
             body = body[0] #only 1 item in the list
             text = body.text
             dbcomment.body = text
-     
+
             # user identifier
             user = comment.findAll(attrs={"class" : "author"})
             user = user[0]
             href = user['href']
-            # link similar to: /en/users/0000/username/ in OpenStack askbot
-            user_identifier = href.split('/')[3]
+
+            m = re.match(self.USER_HREF_REGEXP, href)
+            user_identifier =  m.group(1)
             dbcomment.user_identifier = user_identifier
-       
+
             # time of comment
             comment_date = comment.findAll(attrs={"class" : "timeago"})
             comment_date = comment_date[0].text
