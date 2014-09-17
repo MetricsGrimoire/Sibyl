@@ -38,6 +38,7 @@ class People(Base):
 
     id = Column(Integer, primary_key = True) # Unique id
     username =  Column(String(50))
+    email = Column(String(128))
     joined_at = Column(DateTime, nullable = False)
     last_seen_at = Column(DateTime, nullable = False)
     reputation = Column(Integer)
