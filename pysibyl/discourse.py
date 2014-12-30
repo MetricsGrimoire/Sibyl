@@ -15,86 +15,67 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 # Authors:
-#    Daniel Izquierdo Cortazar <dizquierdo@bitergia.com>   
+#    Alvaro del Castillo <acs@bitergia.com>   
 #
-# Beautiful Soup HTML parser for Askbot QA tool
+# Beautiful Soup HTML parser for Discourse QA tool
 
-import re
+from dateutil.parser import parse
 import datetime
-
+import logging
+import re
 import requests
-
-from BeautifulSoup import BeautifulSoup
 
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
 
-class QuestionsIter(object):
+class QuestionsDiscourse(object):
     """Iterator to go through the set of questions
     """
 
-    def __init__(self, url):
+    def __init__(self, url, category):
         self.url = url
-        self.pages = self._count_q_pages()
-        self.current = 1
         self.data = None
+        self.category = category
 
-    def _count_q_pages(self):
-        # count total number of question pages to iterate through
-        stream = requests.get(self.url + "/api/v1/questions/?page=1", verify=False)
+    def questions(self):
+        questions = []
+
+        url = self.url + "/c/" + self.category + ".json"
+        stream = requests.get(url, verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
-        pages = int(data.pages)
+        data = data['topic_list']['topics']
 
-        return pages
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if self.current > self.pages:
-            raise StopIteration
-        else:
-            questions = self._questions()
-            self.current = self.current + 1
-
-            return questions
-
-    def _questions(self):
-        # returns next slice of question identifiers
-        questions = []  # list of question identifiers
-
-        stream = requests.get(self.url + "/api/v1/questions/?page=" + str(self.current), verify=False)
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        data = parser.data
-
-        for question in data.questions:
+        for question in data:
             # Each of the question is initialized here
-            # Askbot API v1 provides same information when asking
-            # for questions in the API, than when asking question by question.
             dbquestion = Questions()
-            dbquestion.answer_count = question['answer_count']
+            for poster in question['posters']:
+                if poster['description'] == 'Original Poster':
+                    dbquestion.author_identifier = poster['user_id']
+                elif poster['description'] == 'Most Recent Poster':
+                    dbquestion.last_activity_by = poster['user_id']
+
+            dbquestion.answer_count = question['posts_count']
             dbquestion.question_identifier = question['id']
-            dbquestion.last_activity_by = question['last_activity_by']['id']
-            dbquestion.view_count = question['view_count']
-            dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_at'])).strftime('%Y-%m-%d %H:%M:%S')
+            dbquestion.view_count = question['views']
+            if question['last_posted_at'] is not None:
+                dbquestion.last_activity_at = parse(question['last_posted_at']).strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                dbquestion.last_activity_at = parse(question['created_at']).strftime('%Y-%m-%d %H:%M:%S')
             dbquestion.title = question['title']
-            dbquestion.url = question['url']
-            dbquestion.author_identifier = question['author']['id']
-            dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.score = question['score']            
+            dbquestion.title = question['body']
+            dbquestion.url = self.url +"/t/"+question['slug']
+            dbquestion.added_at = parse(question['created_at']).strftime('%Y-%m-%d %H:%M:%S')
+            # dbquestion.score = question['score']
 
             questions.append(dbquestion)
 
         return questions
 
-
-
-class Askbot(object):
-    """Askbot main class
+class Discourse(object):
+    """Discourse main class
     """
 
     def __init__(self, url):
@@ -103,15 +84,14 @@ class Askbot(object):
         self.alltags = []
         self.allusers =  []
 
-    def questions(self):
-        # Iterator through the whole set of questions
-        return QuestionsIter(self.url)
+    def questions(self, category):
+        return QuestionsDiscourse(self.url, category).questions()
 
     def remove_question(self, dbquestion, session):
         # This function removes all information in cascade for
         # info found in dbquestion. Given that we're using Myisam
         # the cascade removal is manually done.
-        
+
         # removing question
         query_question = session.query(Questions).\
             filter(Questions.question_identifier==int(dbquestion.question_identifier))
@@ -151,7 +131,7 @@ class Askbot(object):
         # This function checks if the dbquestion is updated
         # according to the information found in the database
         # and the "last_activity_at" field
-        
+
         updated = True
         found = True
 
@@ -161,7 +141,7 @@ class Askbot(object):
 
         if len(questions) == 0:
             #question not found in db
-            print "    * Question not found in db"
+            logging.info( "    * Question not found in db")
             found = False
             updated = False
 
@@ -172,25 +152,10 @@ class Askbot(object):
             date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%d %H:%M:%S")
             if question.last_activity_at < date:
                 #question not updated in db
-                print "    * Question not updated in db"
+                logging.info("    * Question not updated in db")
                 updated = False
 
         return updated, found
-
-    def get_question(self, dbquestion):
-        # This function parses extra information only found in the
-        # HTML and not throuhg the API v1.
-
-        # Retrieving information not available through the v1 askbot API
-        self.questionHTML = QuestionHTML(dbquestion.url)
-        dbquestion.body = self.questionHTML.getBody()
-
-        # Retrieving creation date. Issue found in https://bugs.launchpad.net/openstack-community/+bug/1306558
-        # This is a work around, or at least in the following, this will help to double check the creation date
-        dbquestion.added_at = self.questionHTML.getDate()
-
-        return dbquestion
-
 
     def tags (self, dbquestion):
         tagslist = []
@@ -257,7 +222,7 @@ class Askbot(object):
 
     def get_user(self, user_id):
         stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
-        print stream.url
+        logging.info(stream.url)
         #print(self.url + "/api/v1/users/" + str(user_id) + "/")
         parser = JSONParser(unicode(stream.text))
         parser.parse()
@@ -273,57 +238,24 @@ class Askbot(object):
 
         return dbuser
 
+    def categories(self):
+        stream = requests.get(self.url + "/categories.json", verify=False)
+        logging.info(stream.url)
+        #print(self.url + "/api/v1/users/" + str(user_id) + "/")
+        parser = JSONParser(unicode(stream.text))
+        parser.parse()
+        categories = parser.data['category_list']['categories']
 
-class QuestionHTML(Askbot):
-    """Question HTML parser"""
-
-    # OpenStack user links: /en/users/0000/username/
-    # Puppet user links: /users/0000/username/
-    USER_HREF_REGEXP = "^.*/users/([0-9]+)/.+$"
+        return categories
 
 
-    def __init__(self, url):
-        self.url = url
-        self.bsoup = BeautifulSoup(requests.get(url, verify=False).text)
-        self.tags = []
 
-    def getDate(self):
-        # Returns the date of creation of question. 
-        # The API is wrongly assigning a date (seems to be random one)
-        # More info at: https://bugs.launchpad.net/openstack-community/+bug/1306558
-        stats = self.bsoup.findAll(attrs={"class" : re.compile("^box statsWidget")})
-        stats = stats[0] # only 1 item in the list
-
-        asked_date = stats.findAll(attrs={"class" : "timeago"})
-        asked_date = asked_date[0].text
-
-        return asked_date
-
-    def getBody(self):
-        # Returns body question message
-        # This is found under the <meta name="description" content="">
-    
-        metas = self.bsoup.findAll('meta')
-        body = ""
-
-        for meta in metas:
-            found = False
-            for attr, value in meta.attrs:
-                if found:
-                    found = False
-                    body = value
-                if attr == "name" and value == "description":
-                    # the following loop of attr, value is the field with the body
-                    # of the question
-                    found = True
-
-        return unicode(body)
 
     def getTags(self):
         # Returns a list of tags
         # This is found under the <meta name="keywords" content="">
         # Keywords are comma separated
-        
+
         metas = self.bsoup.findAll('meta')
         tags = ""
 
@@ -401,9 +333,9 @@ class QuestionHTML(Askbot):
 
         comments_div = self.bsoup.findAll(attrs={"id" : div_id})
         comments_div = comments_div[0]
-     
+
         comments = comments_div.findAll(attrs={"class" : "comment"})
-            
+
         dbcomments = []
         for comment in comments:
             dbcomment = Comments()
