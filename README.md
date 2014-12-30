@@ -49,7 +49,8 @@ Second, you can easily run Sibyl from the cloned repository as follows:
 ## Running Tests
 
 You can easily run tests for Sibyl as follows:
-    # ~/MetricsGrimoire/Sibyl/$ python -m unittest discover  -s ./tests/
+
+    ~/MetricsGrimoire/Sibyl/$ python -m unittest discover  -s ./tests/
 
 
 ## Improving Sibyl
