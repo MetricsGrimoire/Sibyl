@@ -29,19 +29,21 @@ Licensed under GNU General Public License (GPL), version 3 or later
 
 Locally:
 
-    # python setup install
+    python setup install
     
 In the system:
 
-    # sudo python setup install
+    sudo python setup install
 
 ## Running Sibyl
 
 First, create database as follows:
-    # CREATE DATABASE <databasename> CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+
+    CREATE DATABASE <databasename> CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 
 Second, you can easily run Sibyl from the cloned repository as follows:
-    # ~/MetricsGrimoire/Sibyl/$ python sibyl.py -t ab -l https://ask.openstack.org/ -d <databasename> -u <dbuser> -p <dbpassword>
+
+    ~/MetricsGrimoire/Sibyl/$ python sibyl.py -t ab -l https://ask.openstack.org/ -d <databasename> -u <dbuser> -p <dbpassword>
 
 
 ## Running Tests
