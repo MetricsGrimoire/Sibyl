@@ -28,8 +28,11 @@ Licensed under GNU General Public License (GPL), version 3 or later
 ## Installation
 
 Locally:
+
     # python setup install
+    
 In the system:
+
     # sudo python setup install
 
 ## Running Sibyl
