@@ -194,13 +194,13 @@ def stack_parser(session):
             session.add(dbquestion)
             session.commit()
 
-            continue
-
             #Comments
-            comments = stack.question_comments(dbquestion)
+            comments = stack.get_comments(dbquestion,"question")
             for comment in comments:
                 session.add(comment)
                 session.commit()
+
+            continue
 
             #Answers
             answers = stack.answers(dbquestion)
