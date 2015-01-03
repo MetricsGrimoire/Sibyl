@@ -17,23 +17,19 @@
 #
 # Authors:
 #   Daniel Izquierdo Cortazar <dizquierdo@bitergia.com>
+#   Alvaro del Castillo <acs@bitergia.com>
 #
 
+import logging
+
 from optparse import OptionParser
-import datetime
 
 from sqlalchemy import create_engine
-from sqlalchemy import Table, Column, Integer, String, MetaData
 from sqlalchemy.orm import sessionmaker
 
-import requests
-
-from BeautifulSoup import BeautifulSoup 
-
-from pysibyl.db import Base, People, Questions, Tags, QuestionsTags, Answers
-from pysibyl.utils import JSONParser
+from pysibyl.db import Base
 from pysibyl.askbot import Askbot
-
+from pysibyl.stackoverflow import Stack
 
 def read_options():
     parser = OptionParser(usage="usage: %prog [options]",
@@ -41,7 +37,7 @@ def read_options():
     parser.add_option("-t", "--type",
                       action="store",
                       dest="type",
-                      help="Type: askbot (ab)")
+                      help="Type: askbot (ab), stackoverflow")
     parser.add_option("-l", "--url",
                       action="store",
                       dest="url",
@@ -65,10 +61,25 @@ def read_options():
                       dest="debug",
                       default=False,
                       help="Debug mode")
+    parser.add_option("-k", "--key",
+                      action="store",
+                      dest="api_key",
+                      help="API key")
+    parser.add_option("--tags",
+                      action="store",
+                      dest="tags",
+                      help="Tags to be gathered")
+
     (opts, args) = parser.parse_args()
 
     if len(args) != 0:
         parser.error("Wrong number of arguments")
+
+    if not opts.url or not opts.dbuser or not opts.dbuser or not opts.type:
+        parser.error("url, dbuser, database and type are needed params")
+
+    if (opts.type == "stackoverflow" and not (opts.api_key and opts.tags)):
+        parser.error("key and tags are need for stackoverflow.")
 
     return opts
 
@@ -104,7 +115,7 @@ def askbot_parser(session, url):
             users_id.append(dbquestion.author_identifier)
             session.add(dbquestion)
             session.commit()
-    
+
             #Comments
             comments = askbot.question_comments(dbquestion)
             for comment in comments:
@@ -140,9 +151,92 @@ def askbot_parser(session, url):
                     session.add(user)
                     session.commit()
                     all_users.append(user_id)
-                
+
+def stack_parser(session):
+    # Initial parsing of general info, users and questions
+    url = opts.url
+    tags = opts.tags.split(",")
+    stack = Stack(url, opts.api_key, opts.tags)
+    all_users = []
+
+    logging.info("Stack parsing from: " + opts.url)
+
+    if len(tags) == 1:
+        # If just one tag, we try to find others
+        tags = stack.get_search_tags()
+
+
+    for tag in tags:
+        questions = stack.questions(tag)
+        users_id = []
+
+        for dbquestion in questions:
+            # TODO: at some point the questions() iterator should
+            # provide each "question" and not a set of them
+            print "Analyzing: " + dbquestion.url
+
+            updated, found = stack.is_question_updated(dbquestion, session)
+            if found and updated:
+                # no changes needed
+                print "    * NOT updating information for this question"
+                continue
+
+            if found and not updated:
+                # So far using the simpliest approach: remove all info related to
+                # this question and re-insert values: drop question, tags, 
+                # answers and comments for question and answers.
+                # This is done in this way to avoid several 'if' clauses to 
+                # control if question was found/not found or updated/not updated
+                print "Restarting dataset for this question"
+                stack.remove_question(dbquestion, session)
+
+            users_id.append(dbquestion.author_identifier)
+            session.add(dbquestion)
+            session.commit()
+
+            continue
+
+            #Comments
+            comments = stack.question_comments(dbquestion)
+            for comment in comments:
+                session.add(comment)
+                session.commit()
+
+            #Answers
+            answers = stack.answers(dbquestion)
+            for answer in answers:
+                users_id.append(answer.user_identifier)
+                session.add(answer)
+                session.commit()
+                # comments per answer
+                comments = stack.answer_comments(answer)
+                for comment in comments:
+                    session.add(comment)
+                    session.commit()
+
+            #Tags
+            tags, questiontags = stack.tags(dbquestion)
+            for tag in tags:
+                session.add(tag)
+                session.commit()
+            for questiontag in questiontags:
+                session.add(questiontag)
+                session.commit()
+
+            #Users
+            for user_id in users_id:
+                if user_id not in all_users:
+                    #User not previously inserted
+                    user = stack.get_user(user_id)
+                    session.add(user)
+                    session.commit()
+                    all_users.append(user_id)
+
+
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')
+
     opts = read_options()
 
     options = """mysql://%s:%s@localhost/%s?charset=utf8""" % (opts.dbuser, opts.dbpassword, opts.dbname)
@@ -153,11 +247,14 @@ if __name__ == '__main__':
     # Previously create database with 
     # CREATE DATABASE <database> CHARACTER SET utf8 COLLATE utf8_unicode_ci;
     Base.metadata.create_all(engine)
-    
+
     session.commit()
 
     if opts.type == "ab":
         # askbot backend
         askbot_parser(session, opts.url)
-
-        
+    elif opts.type == "stackoverflow":
+        # askbot backend
+        stack_parser(session)
+    else:
+        logging.error("Type not supported: " + opts.type)
