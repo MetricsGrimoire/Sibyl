@@ -125,7 +125,8 @@ def askbot_parser(session, url):
             #Answers
             answers = askbot.answers(dbquestion)
             for answer in answers:
-                users_id.append(answer.user_identifier)
+                if answer.user_identifier is not None:
+                    users_id.append(answer.user_identifier)
                 session.add(answer)
                 session.commit()
                 # comments per answer
@@ -165,7 +166,6 @@ def stack_parser(session):
         # If just one tag, we try to find others
         tags = stack.get_search_tags()
 
-
     for tag in tags:
         questions = stack.questions(tag)
         users_id = []
@@ -194,31 +194,26 @@ def stack_parser(session):
             session.add(dbquestion)
             session.commit()
 
-            #Comments
+            # Comments
             comments = stack.get_comments(dbquestion,"question")
             for comment in comments:
                 session.add(comment)
                 session.commit()
 
-            continue
-
-            #Answers
+            # Answers
             answers = stack.answers(dbquestion)
             for answer in answers:
                 users_id.append(answer.user_identifier)
                 session.add(answer)
                 session.commit()
                 # comments per answer
-                comments = stack.answer_comments(answer)
+                comments = stack.get_comments(answer, "answer")
                 for comment in comments:
                     session.add(comment)
                     session.commit()
 
-            #Tags
-            tags, questiontags = stack.tags(dbquestion)
-            for tag in tags:
-                session.add(tag)
-                session.commit()
+            # Tags
+            questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
             for questiontag in questiontags:
                 session.add(questiontag)
                 session.commit()
@@ -228,11 +223,12 @@ def stack_parser(session):
                 if user_id not in all_users:
                     #User not previously inserted
                     user = stack.get_user(user_id)
+                    if user is None:
+                        logging.error("None user found")
+                        continue
                     session.add(user)
                     session.commit()
                     all_users.append(user_id)
-
-
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')

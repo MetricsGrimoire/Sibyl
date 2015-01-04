@@ -21,7 +21,6 @@
 
 import datetime
 import logging
-import re
 import requests
 
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
@@ -39,6 +38,10 @@ class StackSampleData(object):
         StackSampleData.tags = '{"items":[{"has_synonyms":false,"is_moderator_only":false,"is_required":false,"count":1985,"name":"openshift"},{"has_synonyms":false,"is_moderator_only":false,"is_required":false,"count":71,"name":"openshift-origin"},{"has_synonyms":false,"is_moderator_only":false,"is_required":false,"count":20,"name":"openshift-client-tools"},{"has_synonyms":false,"is_moderator_only":false,"is_required":false,"count":8,"name":"openshift-enterprise"},{"has_synonyms":false,"is_moderator_only":false,"is_required":false,"count":1,"name":"openshift-web-console"}],"has_more":false,"quota_max":10000,"quota_remaining":9992}'
         # Question comments sample
         StackSampleData.comments = '{"items":[{"owner":{"reputation":20251,"user_id":313063,"user_type":"registered","accept_rate":85,"profile_image":"https://www.gravatar.com/avatar/64afa42ebc0a920509f959e97307d16f?s=128&d=identicon&r=PG","display_name":"Andr&#233; Caron","link":"http://stackoverflow.com/users/313063/andr%c3%a9-caron"},"reply_to_user":{"reputation":101,"user_id":1073106,"user_type":"registered","profile_image":"http://i.stack.imgur.com/sZlKX.jpg?s=128&g=1","display_name":"Martin Argerami","link":"http://stackoverflow.com/users/1073106/martin-argerami"},"edited":false,"score":0,"creation_date":1369237962,"post_id":13,"comment_id":24030385},{"owner":{"reputation":11286,"user_id":219883,"user_type":"registered","accept_rate":91,"profile_image":"https://www.gravatar.com/avatar/c35b5b0f9e7cce48864f4f1545ead995?s=128&d=identicon&r=PG","display_name":"Taryn East","link":"http://stackoverflow.com/users/219883/taryn-east"},"edited":false,"score":0,"creation_date":1367713606,"post_id":13,"comment_id":23475402},{"owner":{"reputation":1708,"user_id":14978,"user_type":"registered","accept_rate":14,"profile_image":"https://www.gravatar.com/avatar/16cb3584428bed67b10a33f628d5b009?s=128&d=identicon&r=PG","display_name":"catphive","link":"http://stackoverflow.com/users/14978/catphive"},"edited":false,"score":17,"creation_date":1302295789,"post_id":13,"comment_id":6376998},{"owner":{"reputation":1781,"user_id":254896,"user_type":"registered","accept_rate":55,"profile_image":"https://www.gravatar.com/avatar/516483be71b517eae14dc24c2bb39bda?s=128&d=identicon&r=PG","display_name":"agnoster","link":"http://stackoverflow.com/users/254896/agnoster"},"edited":false,"score":3,"creation_date":1289465298,"post_id":13,"comment_id":21790488},{"owner":{"reputation":6430,"user_id":26682,"user_type":"registered","profile_image":"https://www.gravatar.com/avatar/04ba362109d3862660d4b1b0b3f2d923?s=128&d=identicon&r=PG","display_name":"Rob Williams","link":"http://stackoverflow.com/users/26682/rob-williams"},"edited":false,"score":2,"creation_date":1228179087,"post_id":13,"comment_id":21790487}],"has_more":false,"quota_max":10000,"quota_remaining":9946}'
+        # Question answer sample
+        StackSampleData.answers = '{"items":[{"owner":{"reputation":128,"user_id":2241405,"user_type":"registered","accept_rate":67,"profile_image":"https://www.gravatar.com/avatar/c1116dfd17a4e1c51736b9e4a8a54d32?s=128&d=identicon&r=PG","display_name":"AkoSi Asiong","link":"http://stackoverflow.com/users/2241405/akosi-asiong"},"is_accepted":false,"community_owned_date":1365692915,"score":11,"last_activity_date":1419095927,"last_edit_date":1419095927,"creation_date":1365692915,"answer_id":15952367,"question_id":4},{"owner":{"reputation":8536,"user_id":39,"user_type":"registered","accept_rate":76,"profile_image":"https://www.gravatar.com/avatar/ea7063d6a51a923ca945008d137aaaa0?s=128&d=identicon&r=PG","display_name":"huseyint","link":"http://stackoverflow.com/users/39/huseyint"},"is_accepted":false,"score":61,"last_activity_date":1405089748,"last_edit_date":1405089748,"creation_date":1217600608,"answer_id":86,"question_id":4},{"owner":{"reputation":139,"user_id":1391700,"user_type":"registered","profile_image":"https://www.gravatar.com/avatar/fa3e75ad5d1b10a30f05a67a84c8a85c?s=128&d=identicon&r=PG","display_name":"Darryl","link":"http://stackoverflow.com/users/1391700/darryl"},"is_accepted":false,"score":11,"last_activity_date":1350215708,"last_edit_date":1350215708,"creation_date":1336875025,"answer_id":10568821,"question_id":4},{"owner":{"reputation":5343,"user_id":55,"user_type":"registered","accept_rate":90,"profile_image":"https://www.gravatar.com/avatar/fcc79759f6398caee5df36cde61b36b7?s=128&d=identicon&r=PG","display_name":"Ryan Fox","link":"http://stackoverflow.com/users/55/ryan-fox"},"is_accepted":false,"score":27,"last_activity_date":1350215680,"last_edit_date":1350215680,"creation_date":1217598786,"answer_id":78,"question_id":4},{"owner":{"reputation":16611,"user_id":356,"user_type":"registered","accept_rate":100,"profile_image":"https://www.gravatar.com/avatar/d7903d8d8a0ef0b446d12906bc32dae8?s=128&d=identicon&r=PG","display_name":"Dinah","link":"http://stackoverflow.com/users/356/dinah"},"is_accepted":false,"score":21,"last_activity_date":1350215663,"last_edit_date":1350215663,"creation_date":1227191802,"answer_id":305467,"question_id":4}],"has_more":true,"quota_max":10000,"quota_remaining":9971}'
+        # User
+        StackSampleData.users = '{"items":[{"badge_counts":{"bronze":121,"silver":93,"gold":20},"account_id":285,"is_employee":false,"last_modified_date":1406421468,"last_access_date":1420310000,"reputation_change_year":5,"reputation_change_quarter":5,"reputation_change_month":5,"reputation_change_week":0,"reputation_change_day":0,"reputation":16611,"creation_date":1217898789,"user_type":"registered","user_id":356,"age":35,"accept_rate":100,"location":"North Carolina","website_url":"","link":"http://stackoverflow.com/users/356/dinah","display_name":"Dinah","profile_image":"https://www.gravatar.com/avatar/d7903d8d8a0ef0b446d12906bc32dae8?s=128&d=identicon&r=PG"}],"has_more":false,"quota_max":10000,"quota_remaining":9961}'
 
 class Stack(object):
     """Stack main class
@@ -51,7 +54,8 @@ class Stack(object):
         self.allusers =  []
         self.api_key = api_key
         self.tags = tags
-        self.debug = True
+        self.debug = False
+        self.dbtags = []
         StackSampleData.init()
 
     def _get_url(self):
@@ -80,7 +84,7 @@ class Stack(object):
             # [u'is_answered', u'view_count', u'tags', u'last_activity_date', u'answer_count', u'creation_date', 
             # u'score', u'link', u'accepted_answer_id', u'owner', u'title', u'question_id']
             dbquestion = Questions()
-            dbquestion.author_identifier = question['owner']
+            dbquestion.author_identifier = question['owner']['user_id']
             dbquestion.answer_count = question['answer_count']
             dbquestion.question_identifier = question['question_id']
             dbquestion.view_count = question['view_count']
@@ -96,6 +100,8 @@ class Stack(object):
             dbquestion.last_activity_by = None
             dbquestion.body = None # TODO: we need to get it
             # Additional fields in Stack: is_answered, accepted_answer_id
+            # Additional data not to be store directly
+            dbquestion.tags = question['tags']
 
             questions.append(dbquestion)
 
@@ -193,59 +199,60 @@ class Stack(object):
 
         return updated, found
 
-    def tags (self, dbquestion):
-        tagslist = []
-        questiontagslist = []
-
-        tags = self.questionHTML.getTags()
-        tagslist, questiontagslist, self.alltags = self.get_tags(dbquestion.question_identifier, tags, self.alltags)
-
-        return tagslist, questiontagslist
-
-    def get_tags(self, question_id, tags, alltags):
-        # This function inserts into the questionstags and tags tables
-        # information associated to a specific question.
-        # This returns an updated version of the tags list
-
-        dbtagslist = []
+    def get_dbquestiontags(self, question_id, tags, session):
+        """ All tags should exist already in the db """
         dbquestiontagslist = []
-
         for tag in tags:
-            if tag not in alltags:
-                # new tag found
-                # WARNING: in case this tool is modified to be incremental,
-                # this will fail. This is due to the tags list structure is
-                # started from scratch and not initialize based on db existing data
-                alltags.append(tag)
-                # insert tag in db
-                dbtag = Tags()
-                dbtag.tag = tag
-
-                dbtagslist.append(dbtag)
-
-                #self.session.add(dbtag)
-                #self.session.commit()
-
-            tag_id = alltags.index(tag) + 1
-
             dbquestiontag = QuestionsTags()
             dbquestiontag.question_identifier = question_id
-            dbquestiontag.tag_id = tag_id
-
+            for dbtag in self.dbtags:
+                if dbtag.tag == tag:
+                    dbquestiontag.tag_id = dbtag.id
+                    break
+            if dbquestiontag.tag_id is None:
+                dbtag = Tags()
+                dbtag.tag = tag
+                session.add(dbtag)
+                session.commit()
+                dbquestiontag.tag_id = dbtag.id
+                self.dbtags.append(dbtag)
             dbquestiontagslist.append(dbquestiontag)
-
-            #self.session.add(dbquestiontag)
-            #self.session.commit()
-
-        return dbtagslist, dbquestiontagslist, alltags
-
-
+        return dbquestiontagslist
 
     def answers(self, dbquestion):
-        # TODO: this does not really return the list of answers
-        # of a given dbquestion object. This actually returns
-        # the answers that at the point of analysis is in memory
-        return self.questionHTML.getAnswers(dbquestion.question_identifier) 
+        all_answers = []
+        url = self.url + '/2.2/questions/'+str(dbquestion.id)+'/answers?'
+        url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
+        print(url)
+        logging.info("Getting answers for question" + dbquestion.title)
+        if not self.debug:
+            stream = requests.get(url, verify=False)
+            data = stream.text
+            print(data)
+        else:
+            data = StackSampleData.answers
+
+        parser = JSONParser(unicode(data))
+        parser.parse()
+        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+        data = parser.data['items']
+
+        for answer in data:
+            dbanswer = Answers()
+            dbanswer.identifier = answer['answer_id']
+            # dbanswer.body = text
+            if 'user_id' in answer['owner']:
+                dbanswer.user_identifier = answer['owner']['user_id']
+            if answer['question_id'] != dbquestion.id:
+                logging.error("Wrong answers for question detected")
+            dbanswer.question_identifier = answer['question_id']
+            create_date = datetime.datetime.fromtimestamp(int(answer['creation_date']))
+            dbanswer.submitted_on = create_date.strftime('%Y-%m-%d %H:%M:%S')
+            dbanswer.votes = answer['score']
+
+            all_answers.append(dbanswer)
+
+        return all_answers
 
 
     def get_comments(self, dbpost, kind = 'question'):
@@ -253,11 +260,11 @@ class Stack(object):
         url = self.url
         dbcomments = []
         if kind == 'question': url = self.url + '/2.2/questions/'
-        if kind == 'question': url = self.url + '/2.2/answers/'
+        if kind == 'answer': url = self.url + '/2.2/answers/'
         url += str(dbpost.id) +'/comments?'
         url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key+'&'
         print(url)
-        logging.info("Getting comments for " + dbpost.title)
+        logging.info("Getting comments for " + str(dbpost.id))
         if not self.debug:
             stream = requests.get(url, verify=False)
             data = stream.text
@@ -280,149 +287,38 @@ class Stack(object):
                 dbcomment.answer_identifier = dbpost.id
             if 'body' in comment.keys(): dbcomment.body = comment.body
 
-            dbcomment.user_identifier = comment.owner
+            dbcomment.user_identifier = comment['owner']['user_id']
             cdate = datetime.datetime.fromtimestamp(int(comment['creation_date']))
             dbcomment.submitted_on = cdate.strftime('%Y-%m-%d %H:%M:%S')
             dbcomments.append(dbcomment)
 
         return dbcomments
 
-    def answer_comments(self, dbanswer):
-        # comments associated to that answer
-        return self.questionHTML.getComments("answer", dbanswer.identifier)
-
     def get_user(self, user_id):
-        stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
-        logging.info(stream.url)
-        #print(self.url + "/api/v1/users/" + str(user_id) + "/")
-        parser = JSONParser(unicode(stream.text))
+        if user_id is None: return
+        url = self.url + '/2.2/users/'+str(user_id)+'?'
+        url += 'order=desc&sort=reputation&site=stackoverflow&key='+self.api_key
+        print(url)
+        if not self.debug:
+            stream = requests.get(url, verify=False)
+            data = stream.text
+            print(data)
+        else:
+            data = StackSampleData.users
+
+        parser = JSONParser(unicode(data))
         parser.parse()
-        user = parser.data
+        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+        data = parser.data['items']
+        user = data[0]
 
         dbuser = People()
-        dbuser.username = user['username']
+        dbuser.username = user['display_name']
         dbuser.reputation = user['reputation']
-        dbuser.avatar = user['avatar']
-        dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_seen_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['joined_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.identifier = user['id']
+        if 'profile_image' in user:
+            dbuser.avatar = user['profile_image']
+        dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_access_date'])).strftime('%Y-%m-%d %H:%M:%S')
+        dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
+        dbuser.identifier = user['user_id']
 
         return dbuser
-
-    def getTags(self):
-        # Returns a list of tags
-        # This is found under the <meta name="keywords" content="">
-        # Keywords are comma separated
-
-        metas = self.bsoup.findAll('meta')
-        tags = ""
-
-        for meta in metas:
-            found = False
-            for attr, value in meta.attrs:
-                if found:
-                    found = False
-                    tags = value
-                if attr == "name" and value == "keywords":
-                    # the following loop of attr, value is the field with the body
-                    # of the question
-                    found = True
-
-        return tags.split(',')
- 
-    def getAnswers(self, q_id):
-        # Returns a list of answers with their comments if exist
-
-        answers = self.bsoup.findAll(attrs={"class" : re.compile("^post answer")})
-
-        all_answers = []
-        for answer in answers:
-            # Obtain body of the message
-            body = answer.findAll(attrs={"class" : "post-body"})
-            body = body[0] #only 1 item in the list
-            text = body.text
-
-            # Obtain unique askbot identifier
-            identifier = int(answer.attrMap['data-post-id'])
-
-            # Obtain time of the answer
-            date_tag = answer.findAll('abbr')
-            date = date_tag[0].text 
-
-            # Obtain user card
-            user = answer.findAll(attrs={"class" : "user-card"})
-            # User name is obtain from the text of the second <a> tag
-            user_links = user[0].findAll('a')
-            user_name = user_links[1].text
-            link = user_links[1]
-            href = link['href']
-
-            m = re.match(self.USER_HREF_REGEXP, href)
-            user_identifier = m.group(1)
-
-            # Obtain votes 
-            votes = answer.findAll(attrs={"class" : "vote-number"})
-            answer_votes = int(votes[0].text)
-
-            #answer = Answer(identifier, text, date, user_identifier, answer_votes)
-            dbanswer = Answers()
-            dbanswer.identifier = identifier
-            dbanswer.body = text
-            dbanswer.user_identifier = user_identifier
-            dbanswer.question_identifier = q_id
-            dbanswer.submitted_on = date
-            dbanswer.votes = answer_votes
-
-            all_answers.append(dbanswer)
-
-        return all_answers
-
-    def getComments(self, typeof, identifier):
-        # typeof: "question" or "answer"
-        # identifier: question or answer identifier
-
-        div_id = ""
-        if typeof == "question":
-            div_id = "comments-for-question-" + str(identifier)
-        elif typeof == "answer":
-            div_id = "comments-for-answer-" + str(identifier)
-        else:
-            return []
-
-        comments_div = self.bsoup.findAll(attrs={"id" : div_id})
-        comments_div = comments_div[0]
-
-        comments = comments_div.findAll(attrs={"class" : "comment"})
-
-        dbcomments = []
-        for comment in comments:
-            dbcomment = Comments()
-
-            # question or answer identifier
-            if typeof == "question":
-                dbcomment.question_identifier = identifier
-            if typeof == "answer": 
-                dbcomment.answer_identifier = identifier
-            # body of comment
-            body = comment.findAll(attrs={"class" : "comment-body"})
-            body = body[0] #only 1 item in the list
-            text = body.text
-            dbcomment.body = text
-
-            # user identifier
-            user = comment.findAll(attrs={"class" : "author"})
-            user = user[0]
-            href = user['href']
-
-            m = re.match(self.USER_HREF_REGEXP, href)
-            user_identifier =  m.group(1)
-            dbcomment.user_identifier = user_identifier
-
-            # time of comment
-            comment_date = comment.findAll(attrs={"class" : "timeago"})
-            comment_date = comment_date[0].text
-            dbcomment.submitted_on = comment_date
-
-            dbcomments.append(dbcomment)
-
-        return dbcomments
