@@ -110,6 +110,7 @@ class Stack(object):
         logging.info('Total number of questions to download: ' + str(total))
 
         page = 1
+        done = 0
         while has_more:
             url = base_url + '&' + 'pagesize='+str(self.pagesize)+'&'+'page='+str(page)
             if not self.debug:
@@ -154,8 +155,10 @@ class Stack(object):
 
                 if dbquestion is not None: questions.append(dbquestion)
 
-                if len(questions) % 10 == 0: logging.info("Done: " + str(len(questions)) + "/"+str(total))
-            logging.info("Done: " + str(len(questions)) + "/"+str(total))
+                done +=1
+
+                if len(questions) % 10 == 0: logging.info("Done: " + str(done) + "/"+str(total))
+            logging.info("Done: " + str(done) + "/"+str(total))
         return questions
 
 
@@ -261,10 +264,12 @@ class Stack(object):
             if dbquestiontag.tag_id is None:
                 logging.debug(tag + " NOT found. Adding it")
                 # First look for it in the db
-                dbtag = Tags()
-                dbtag.tag = tag
-                self.session.add(dbtag)
-                self.session.commit()
+                dbtag = self.session.query(Tags).filter(Tags.tag==tag).first()
+                if dbtag is None:
+                    dbtag = Tags()
+                    dbtag.tag = tag
+                    self.session.add(dbtag)
+                    self.session.commit()
                 self.dbtags.append(dbtag)
                 dbquestiontag.tag_id = dbtag.id
 
