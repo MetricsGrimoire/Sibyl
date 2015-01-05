@@ -78,8 +78,9 @@ class Discourse(object):
     """Discourse main class
     """
 
-    def __init__(self, url):
+    def __init__(self, url, session):
         self.url = url
+        self.session = session
         self.questionHTML = None #Current question working on
         self.alltags = []
         self.allusers =  []
@@ -368,3 +369,84 @@ class Discourse(object):
             dbcomments.append(dbcomment)
 
         return dbcomments
+
+    def parse(self):
+        # Initial parsing of general info, users and questions
+        session = self.session
+        url = self.url
+
+        all_users = []
+
+        for category in  self.categories():
+            print category['slug']
+            if 'subcategory_ids' in category:
+                logging.info("Subcategories not yet supported " + category['slug'])
+                logging.info(category['subcategory_ids'])
+            self.discourse_category_parse(category['slug'], all_users, session, url)
+            break
+
+    def discourse_category_parse(self, category, all_users, session, url):
+
+        for dbquestion in self.questions(category):
+            users_id = []
+
+            # TODO: at some point the questions() iterator should
+            # provide each "question" and not a set of them
+            print "Analyzing: " + dbquestion.url
+
+            updated, found = self.is_question_updated(dbquestion, session)
+            if found and updated:
+                # no changes needed
+                print "    * NOT updating information for this question"
+                continue
+
+            if found and not updated:
+                # So far using the simpliest approach: remove all info related to
+                # this question and re-insert values: drop question, tags, 
+                # answers and comments for question and answers.
+                # This is done in this way to avoid several 'if' clauses to 
+                # control if question was found/not found or updated/not updated
+                print "Restarting dataset for this question"
+                self.remove_question(dbquestion, session)
+
+            users_id.append(dbquestion.author_identifier)
+            session.add(dbquestion)
+            session.commit()
+
+            continue
+            #Comments
+            comments = self.question_comments(dbquestion)
+            for comment in comments:
+                session.add(comment)
+                session.commit()
+
+            #Answers
+            answers = self.answers(dbquestion)
+            for answer in answers:
+                users_id.append(answer.user_identifier)
+                session.add(answer)
+                session.commit()
+                # comments per answer
+                comments = self.answer_comments(answer)
+                for comment in comments:
+                    session.add(comment)
+                    session.commit()
+
+            #Tags
+            tags, questiontags = self.tags(dbquestion)
+            for tag in tags:
+                session.add(tag)
+                session.commit()
+            for questiontag in questiontags:
+                session.add(questiontag)
+                session.commit()
+
+            #Users
+            for user_id in users_id:
+                if user_id not in all_users:
+                    #User not previously inserted
+                    user = self.get_user(user_id)
+                    session.add(user)
+                    session.commit()
+                    all_users.append(user_id)
+
