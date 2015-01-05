@@ -388,8 +388,6 @@ class Stack(object):
                 session.add(dbquestion)
                 session.commit()
 
-                continue
-
                 # Tags
                 questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
                 for questiontag in questiontags:
