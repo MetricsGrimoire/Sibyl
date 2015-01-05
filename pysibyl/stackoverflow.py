@@ -340,3 +340,90 @@ class Stack(object):
         dbuser.identifier = user['user_id']
 
         return dbuser
+
+    def parse(self, session):
+        # Initial parsing of general info, users and questions
+        url = self.url
+        tags = self.tags.split(",")
+        stack = Stack(url, self.api_key, self.tags)
+        all_users = []
+
+        logging.info("Stack parsing from: " + self.url)
+
+        if len(tags) == 1:
+            # If just one tag, we try to find others
+            tags = stack.get_search_tags()
+
+        for tag in tags:
+            questions = stack.questions(tag)
+            users_id = []
+
+            logging.info("Analyzing queries received " + str(len(questions)))
+            done = 0
+
+            for dbquestion in questions:
+                # TODO: at some point the questions() iterator should
+                # provide each "question" and not a set of them
+                logging.debug ("Analyzing: " + dbquestion.url)
+
+                if done % 100 == 0: logging.info (str(done)+"/"+str(len(questions)))
+                done += 1
+
+                updated, found = stack.is_question_updated(dbquestion, session)
+                if found and updated:
+                    # no changes needed
+                    logging.debug ("    * NOT updating information for this question")
+                    continue
+
+                if found and not updated:
+                    # So far using the simpliest approach: remove all info related to
+                    # this question and re-insert values: drop question, tags, 
+                    # answers and comments for question and answers.
+                    # This is done in this way to avoid several 'if' clauses to 
+                    # control if question was found/not found or updated/not updated
+                    logging.debug ("Restarting dataset for this question")
+                    stack.remove_question(dbquestion, session)
+
+                users_id.append(dbquestion.author_identifier)
+                session.add(dbquestion)
+                session.commit()
+
+                continue
+
+                # Tags
+                questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
+                for questiontag in questiontags:
+                    session.add(questiontag)
+                    session.commit()
+
+                # Comments
+                comments = stack.get_comments(dbquestion,"question")
+                for comment in comments:
+                    session.add(comment)
+                    session.commit()
+
+                # Answers
+                answers = stack.answers(dbquestion)
+                for answer in answers:
+                    users_id.append(answer.user_identifier)
+                    session.add(answer)
+                    session.commit()
+                    # comments per answer
+                    comments = stack.get_comments(answer, "answer")
+                    for comment in comments:
+                        session.add(comment)
+                        session.commit()
+
+                #Users
+                for user_id in users_id:
+                    if user_id not in all_users:
+                        #User not previously inserted
+                        user = stack.get_user(user_id)
+                        if user is None:
+                            logging.error("None user found")
+                            continue
+                        session.add(user)
+                        session.commit()
+                        all_users.append(user_id)
+
+            logging.info (str(done)+"/"+str(len(questions)))
