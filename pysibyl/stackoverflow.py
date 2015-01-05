@@ -90,6 +90,8 @@ class Stack(object):
         self.session.add(dbquestion)
         self.session.commit()
 
+        return dbquestion
+
     def questions(self, tag):
         logging.debug("Getting questions for " + tag)
 
@@ -120,6 +122,7 @@ class Stack(object):
             # [u'has_more', u'items', u'quota_max', u'quota_remaining']
             data = parser.data['items']
             has_more = parser.data['has_more']
+            if self.debug: has_more = False
             page += 1
 
             for question in data:
@@ -147,9 +150,10 @@ class Stack(object):
                 # Additional data not to be store directly
                 dbquestion.tags = question['tags']
 
-                self.question_to_db(dbquestion)
+                dbquestion = self.question_to_db(dbquestion)
 
-                questions.append(dbquestion)
+                if dbquestion is not None: questions.append(dbquestion)
+
                 if len(questions) % 10 == 0: logging.info("Done: " + str(len(questions)) + "/"+str(total))
             logging.info("Done: " + str(len(questions)) + "/"+str(total))
         return questions
@@ -245,7 +249,7 @@ class Stack(object):
 
         return updated, found
 
-    def get_dbquestiontags(self, question_id, tags, session):
+    def get_dbquestiontags(self, question_id, tags):
         """ All tags should exist already in the db """
         for tag in tags:
             dbquestiontag = QuestionsTags()
@@ -256,15 +260,16 @@ class Stack(object):
                     break
             if dbquestiontag.tag_id is None:
                 logging.debug(tag + " NOT found. Adding it")
+                # First look for it in the db
                 dbtag = Tags()
                 dbtag.tag = tag
-                session.add(dbtag)
-                session.commit()
+                self.session.add(dbtag)
+                self.session.commit()
                 self.dbtags.append(dbtag)
                 dbquestiontag.tag_id = dbtag.id
 
-            session.add(dbquestiontag)
-            session.commit()
+            self.session.add(dbquestiontag)
+            self.session.commit()
 
     def answers(self, dbquestion):
         all_answers = []
@@ -382,7 +387,7 @@ class Stack(object):
                 users_id.append(dbquestion.author_identifier)
 
                 # Tags
-                self.get_dbquestiontags(dbquestion.id, dbquestion.tags, self.session)
+                self.get_dbquestiontags(dbquestion.id, dbquestion.tags)
 
                 # Comments
                 self.get_comments(dbquestion,"question")
