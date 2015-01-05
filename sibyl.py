@@ -174,7 +174,7 @@ if __name__ == '__main__':
         askbot_parser(session, opts.url)
     elif opts.type == "stackoverflow":
         # stackoverflow backend
-        stack = Stack(opts.url, opts.api_key, opts.tags)
-        stack.parse(session)
+        stack = Stack(opts.url, opts.api_key, opts.tags, session)
+        stack.parse()
     else:
         logging.error("Type not supported: " + opts.type)

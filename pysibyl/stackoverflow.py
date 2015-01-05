@@ -48,7 +48,7 @@ class Stack(object):
     """Stack main class
     """
 
-    def __init__(self, url, api_key, tags, pagesize = None):
+    def __init__(self, url, api_key, tags, session):
         self.url = url
         self.questionHTML = None #Current question working on
         self.alltags = []
@@ -57,9 +57,8 @@ class Stack(object):
         self.tags = tags
         self.debug = False
         self.dbtags = []
-        if pagesize:
-            self.pagesize = pagesize
-        else: self.pagesize = 100 # max for stacjoverflow
+        self.session = session
+        self.pagesize = 100 # max for stacjoverflow
         StackSampleData.init()
 
     def _get_url(self):
@@ -71,6 +70,25 @@ class Stack(object):
         data = stream.text
         logging.debug(data)
         return data
+
+    def question_to_db(self, dbquestion):
+        updated, found = self.is_question_updated(dbquestion, self.session)
+        if found and updated:
+            # no changes needed
+            logging.debug ("    * NOT updating information for this question")
+            return
+
+        if found and not updated:
+            # So far using the simpliest approach: remove all info related to
+            # this question and re-insert values: drop question, tags,
+            # answers and comments for question and answers.
+            # This is done in this way to avoid several 'if' clauses to
+            # control if question was found/not found or updated/not updated
+            logging.debug ("Restarting dataset for this question")
+            self.remove_question(dbquestion, self.session)
+
+        self.session.add(dbquestion)
+        self.session.commit()
 
     def questions(self, tag):
         logging.debug("Getting questions for " + tag)
@@ -128,6 +146,8 @@ class Stack(object):
                 # Additional fields in Stack: is_answered, accepted_answer_id
                 # Additional data not to be store directly
                 dbquestion.tags = question['tags']
+
+                self.question_to_db(dbquestion)
 
                 questions.append(dbquestion)
                 if len(questions) % 10 == 0: logging.info("Done: " + str(len(questions)) + "/"+str(total))
@@ -227,7 +247,6 @@ class Stack(object):
 
     def get_dbquestiontags(self, question_id, tags, session):
         """ All tags should exist already in the db """
-        dbquestiontagslist = []
         for tag in tags:
             dbquestiontag = QuestionsTags()
             dbquestiontag.question_identifier = question_id
@@ -243,8 +262,9 @@ class Stack(object):
                 session.commit()
                 self.dbtags.append(dbtag)
                 dbquestiontag.tag_id = dbtag.id
-            dbquestiontagslist.append(dbquestiontag)
-        return dbquestiontagslist
+
+            session.add(dbquestiontag)
+            session.commit()
 
     def answers(self, dbquestion):
         all_answers = []
@@ -274,6 +294,9 @@ class Stack(object):
             dbanswer.submitted_on = create_date.strftime('%Y-%m-%d %H:%M:%S')
             dbanswer.votes = answer['score']
 
+            self.session.add(dbanswer)
+            self.session.commit()
+
             all_answers.append(dbanswer)
 
         return all_answers
@@ -282,7 +305,6 @@ class Stack(object):
     def get_comments(self, dbpost, kind = 'question'):
         # coments associated to a post (question or answer) that question
         url = self.url
-        dbcomments = []
         if kind == 'question': url = self.url + '/2.2/questions/'
         if kind == 'answer': url = self.url + '/2.2/answers/'
         url += str(dbpost.id) +'/comments?'
@@ -307,13 +329,13 @@ class Stack(object):
             if kind == "answer":
                 dbcomment.answer_identifier = dbpost.id
             if 'body' in comment.keys(): dbcomment.body = comment.body
-
-            dbcomment.user_identifier = comment['owner']['user_id']
+            if 'user_id' in comment['owner']:
+                dbcomment.user_identifier = comment['owner']['user_id']
             cdate = datetime.datetime.fromtimestamp(int(comment['creation_date']))
             dbcomment.submitted_on = cdate.strftime('%Y-%m-%d %H:%M:%S')
-            dbcomments.append(dbcomment)
 
-        return dbcomments
+            self.session.add(dbcomment)
+            self.session.commit()
 
     def get_user(self, user_id):
         if user_id is None: return
@@ -341,87 +363,47 @@ class Stack(object):
 
         return dbuser
 
-    def parse(self, session):
+    def parse(self):
         # Initial parsing of general info, users and questions
         url = self.url
         tags = self.tags.split(",")
-        stack = Stack(url, self.api_key, self.tags)
         all_users = []
 
         logging.info("Stack parsing from: " + self.url)
 
         if len(tags) == 1:
             # If just one tag, we try to find others
-            tags = stack.get_search_tags()
+            tags = self.get_search_tags()
 
         for tag in tags:
-            questions = stack.questions(tag)
+            questions = self.questions(tag)
+            continue
             users_id = []
 
-            logging.info("Analyzing queries received " + str(len(questions)))
-            done = 0
-
             for dbquestion in questions:
-                # TODO: at some point the questions() iterator should
-                # provide each "question" and not a set of them
-                logging.debug ("Analyzing: " + dbquestion.url)
-
-                if done % 100 == 0: logging.info (str(done)+"/"+str(len(questions)))
-                done += 1
-
-                updated, found = stack.is_question_updated(dbquestion, session)
-                if found and updated:
-                    # no changes needed
-                    logging.debug ("    * NOT updating information for this question")
-                    continue
-
-                if found and not updated:
-                    # So far using the simpliest approach: remove all info related to
-                    # this question and re-insert values: drop question, tags, 
-                    # answers and comments for question and answers.
-                    # This is done in this way to avoid several 'if' clauses to 
-                    # control if question was found/not found or updated/not updated
-                    logging.debug ("Restarting dataset for this question")
-                    stack.remove_question(dbquestion, session)
-
                 users_id.append(dbquestion.author_identifier)
-                session.add(dbquestion)
-                session.commit()
 
                 # Tags
-                questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
-                for questiontag in questiontags:
-                    session.add(questiontag)
-                    session.commit()
+                self.get_dbquestiontags(dbquestion.id, dbquestion.tags, self.session)
 
                 # Comments
-                comments = stack.get_comments(dbquestion,"question")
-                for comment in comments:
-                    session.add(comment)
-                    session.commit()
+                self.get_comments(dbquestion,"question")
 
                 # Answers
-                answers = stack.answers(dbquestion)
+                answers = self.answers(dbquestion)
                 for answer in answers:
                     users_id.append(answer.user_identifier)
-                    session.add(answer)
-                    session.commit()
                     # comments per answer
-                    comments = stack.get_comments(answer, "answer")
-                    for comment in comments:
-                        session.add(comment)
-                        session.commit()
+                    self.get_comments(answer, "answer")
 
                 #Users
                 for user_id in users_id:
                     if user_id not in all_users:
                         #User not previously inserted
-                        user = stack.get_user(user_id)
+                        user = self.get_user(user_id)
                         if user is None:
-                            logging.error("None user found")
+                            logging.debug("None user found")
                             continue
-                        session.add(user)
-                        session.commit()
+                        self.session.add(user)
+                        self.session.commit()
                         all_users.append(user_id)
-
-            logging.info (str(done)+"/"+str(len(questions)))
