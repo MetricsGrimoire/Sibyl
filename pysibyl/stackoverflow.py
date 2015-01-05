@@ -59,6 +59,7 @@ class Stack(object):
         self.dbtags = []
         self.session = session
         self.pagesize = 100 # max for stacjoverflow
+        self.api_limit = 10000 # max default
         StackSampleData.init()
 
     def _get_url(self):
@@ -68,6 +69,13 @@ class Stack(object):
         logging.info(url)
         stream = requests.get(url, verify=False)
         data = stream.text
+        if 'quota_remaining' in stream.json():
+            self.api_limit = stream.json()['quota_remaining']
+            if self.api_limit % 100 == 0:
+                logging.info("Quota remaining " + str(self.api_limit))
+            if self.api_limit < 10:
+                logging.info("API consumed. Can't continue")
+                raise Exception
         logging.debug(data)
         return data
 
@@ -280,6 +288,7 @@ class Stack(object):
         all_answers = []
         url = self.url + '/2.2/questions/'+str(dbquestion.id)+'/answers?'
         url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
+        url += '&' + 'pagesize='+str(self.pagesize)
         logging.debug("Getting answers for question" + dbquestion.title)
         if not self.debug:
             data = self._get_api_data(url)
@@ -318,7 +327,8 @@ class Stack(object):
         if kind == 'question': url = self.url + '/2.2/questions/'
         if kind == 'answer': url = self.url + '/2.2/answers/'
         url += str(dbpost.id) +'/comments?'
-        url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key+'&'
+        url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key
+        url += '&' + 'pagesize='+str(self.pagesize)
         logging.debug("Getting comments for " + str(dbpost.id))
         if not self.debug:
             data = self._get_api_data(url)
@@ -407,7 +417,8 @@ class Stack(object):
                 for answer in answers:
                     users_id.append(answer.user_identifier)
                     # comments per answer
-                    self.get_comments(answer, "answer")
+                    # Disabled to avoid consuming API max queries
+                    # self.get_comments(answer, "answer")
 
                 #Users
                 for user_id in users_id:
