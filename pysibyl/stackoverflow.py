@@ -365,7 +365,6 @@ class Stack(object):
 
     def parse(self):
         # Initial parsing of general info, users and questions
-        url = self.url
         tags = self.tags.split(",")
         all_users = []
 
@@ -377,7 +376,6 @@ class Stack(object):
 
         for tag in tags:
             questions = self.questions(tag)
-            continue
             users_id = []
 
             for dbquestion in questions:
