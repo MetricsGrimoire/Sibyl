@@ -84,7 +84,7 @@ class Tags(Base):
     __tablename__ = 'tags'
 
     id = Column(Integer, primary_key=True)
-    tag = Column(String(50))
+    tag = Column(String(50), unique=True)
 
 
 class Answers(Base):

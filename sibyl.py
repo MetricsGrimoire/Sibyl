@@ -170,15 +170,21 @@ def stack_parser(session):
         questions = stack.questions(tag)
         users_id = []
 
+        logging.info("Analyzing queries received " + str(len(questions)))
+        done = 0
+
         for dbquestion in questions:
             # TODO: at some point the questions() iterator should
             # provide each "question" and not a set of them
-            print "Analyzing: " + dbquestion.url
+            logging.debug ("Analyzing: " + dbquestion.url)
+
+            if done % 100 == 0: logging.info (str(done)+"/"+str(len(questions)))
+            done += 1
 
             updated, found = stack.is_question_updated(dbquestion, session)
             if found and updated:
                 # no changes needed
-                print "    * NOT updating information for this question"
+                logging.debug ("    * NOT updating information for this question")
                 continue
 
             if found and not updated:
@@ -187,12 +193,20 @@ def stack_parser(session):
                 # answers and comments for question and answers.
                 # This is done in this way to avoid several 'if' clauses to 
                 # control if question was found/not found or updated/not updated
-                print "Restarting dataset for this question"
+                logging.debug ("Restarting dataset for this question")
                 stack.remove_question(dbquestion, session)
 
             users_id.append(dbquestion.author_identifier)
             session.add(dbquestion)
             session.commit()
+
+            # Tags
+            questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
+            for questiontag in questiontags:
+                session.add(questiontag)
+                session.commit()
+
+            continue
 
             # Comments
             comments = stack.get_comments(dbquestion,"question")
@@ -212,12 +226,6 @@ def stack_parser(session):
                     session.add(comment)
                     session.commit()
 
-            # Tags
-            questiontags = stack.get_dbquestiontags(dbquestion.id, dbquestion.tags, session)
-            for questiontag in questiontags:
-                session.add(questiontag)
-                session.commit()
-
             #Users
             for user_id in users_id:
                 if user_id not in all_users:
@@ -229,6 +237,8 @@ def stack_parser(session):
                     session.add(user)
                     session.commit()
                     all_users.append(user_id)
+
+        logging.info (str(done)+"/"+str(len(questions)))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')

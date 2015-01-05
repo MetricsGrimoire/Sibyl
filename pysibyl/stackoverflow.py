@@ -20,6 +20,7 @@
 # Parser for Stackoverflow QA tool
 
 import datetime
+import json
 import logging
 import requests
 
@@ -47,7 +48,7 @@ class Stack(object):
     """Stack main class
     """
 
-    def __init__(self, url, api_key, tags):
+    def __init__(self, url, api_key, tags, pagesize = None):
         self.url = url
         self.questionHTML = None #Current question working on
         self.alltags = []
@@ -56,68 +57,93 @@ class Stack(object):
         self.tags = tags
         self.debug = False
         self.dbtags = []
+        if pagesize:
+            self.pagesize = pagesize
+        else: self.pagesize = 100 # max for stacjoverflow
         StackSampleData.init()
 
     def _get_url(self):
         return self.url + "/2.2/tags?key="+self.api_key+"&"
 
+    def _get_api_data(self, url):
+        logging.info(url)
+        stream = requests.get(url, verify=False)
+        data = stream.text
+        logging.debug(data)
+        return data
+
     def questions(self, tag):
+        logging.debug("Getting questions for " + tag)
+
         questions = []
-        url = self.url + '/2.2/questions?'
-        url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key+'&'
-        url += 'tagged='+ tag
-        logging.info("Getting questions for " + tag)
-        if not self.debug:
-            stream = requests.get(url, verify=False)
-            data = stream.text
-            print(data)
-        else:
-            data = StackSampleData.questions
+        has_more = True
+        base_url = self.url + '/2.2/questions?'
+        base_url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key+'&'
+        base_url += 'tagged='+ tag
 
-        parser = JSONParser(unicode(data))
-        parser.parse()
-        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
-        data = parser.data['items']
+        # get total number of questions
+        url_total = base_url +'&'+'pagesize=1&filter=total'
+        data = self._get_api_data(url_total)
+        # Hack: total not provided in API as a JSON object
+        data = json.loads(data)
+        total = data['total']
+        logging.info('Total number of questions to download: ' + str(total))
 
-        for question in data:
-            # Each of the question is initialized here
-            # [u'is_answered', u'view_count', u'tags', u'last_activity_date', u'answer_count', u'creation_date', 
-            # u'score', u'link', u'accepted_answer_id', u'owner', u'title', u'question_id']
-            dbquestion = Questions()
-            dbquestion.author_identifier = question['owner']['user_id']
-            dbquestion.answer_count = question['answer_count']
-            dbquestion.question_identifier = question['question_id']
-            dbquestion.view_count = question['view_count']
-            if question['last_activity_date'] is not None:
-                dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_date'])).strftime('%Y-%m-%d %H:%M:%S')
+        page = 1
+        while has_more:
+            url = base_url + '&' + 'pagesize='+str(self.pagesize)+'&'+'page='+str(page)
+            if not self.debug:
+                data = self._get_api_data(url)
             else:
-                dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.title = question['title']
-            dbquestion.url = question['link']
-            dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.score = question['score']
-            # Missing fields in Stack
-            dbquestion.last_activity_by = None
-            dbquestion.body = None # TODO: we need to get it
-            # Additional fields in Stack: is_answered, accepted_answer_id
-            # Additional data not to be store directly
-            dbquestion.tags = question['tags']
+                data = StackSampleData.questions
 
-            questions.append(dbquestion)
+            parser = JSONParser(unicode(data))
+            parser.parse()
+            # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+            data = parser.data['items']
+            has_more = parser.data['has_more']
+            page += 1
 
+            for question in data:
+                # Each of the question is initialized here
+                # [u'is_answered', u'view_count', u'tags', u'last_activity_date', u'answer_count', u'creation_date',
+                # u'score', u'link', u'accepted_answer_id', u'owner', u'title', u'question_id']
+                dbquestion = Questions()
+                if 'user_id' in question['owner']:
+                    dbquestion.author_identifier = question['owner']['user_id']
+                dbquestion.answer_count = question['answer_count']
+                dbquestion.question_identifier = question['question_id']
+                dbquestion.view_count = question['view_count']
+                if question['last_activity_date'] is not None:
+                    dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_date'])).strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
+                dbquestion.title = question['title']
+                dbquestion.url = question['link']
+                dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
+                dbquestion.score = question['score']
+                # Missing fields in Stack
+                dbquestion.last_activity_by = None
+                dbquestion.body = None # TODO: we need to get it
+                # Additional fields in Stack: is_answered, accepted_answer_id
+                # Additional data not to be store directly
+                dbquestion.tags = question['tags']
+
+                questions.append(dbquestion)
+                if len(questions) % 10 == 0: logging.info("Done: " + str(len(questions)) + "/"+str(total))
+            logging.info("Done: " + str(len(questions)) + "/"+str(total))
         return questions
 
 
     def get_search_tags(self):
         found_tags = []
 
-        logging.info("Getting all task based on: " + self.tags)
+        logging.info("Getting all tags based on: " + self.tags)
         url = self._get_url()
         url += "order=desc&sort=popular&site=stackoverflow"
         url += "&inname=" + str(self.tags)
         if not self.debug:
-            stream = requests.get(url, verify=False)
-            data = stream.text
+            data = self._get_api_data(url)
         else:
             data = StackSampleData.tags
 
@@ -126,7 +152,7 @@ class Stack(object):
         tags_data = parser.data['items']
         for tag in tags_data:
             found_tags.append(tag['name'])
-
+        logging.info(found_tags)
         return found_tags
 
     def remove_question(self, dbquestion, session):
@@ -183,7 +209,7 @@ class Stack(object):
 
         if len(questions) == 0:
             #question not found in db
-            logging.info( "    * Question not found in db")
+            logging.debug( "    * Question not found in db")
             found = False
             updated = False
 
@@ -194,7 +220,7 @@ class Stack(object):
             date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%d %H:%M:%S")
             if question.last_activity_at < date:
                 #question not updated in db
-                logging.info("    * Question not updated in db")
+                logging.debug("    * Question not updated in db")
                 updated = False
 
         return updated, found
@@ -210,12 +236,13 @@ class Stack(object):
                     dbquestiontag.tag_id = dbtag.id
                     break
             if dbquestiontag.tag_id is None:
+                logging.debug(tag + " NOT found. Adding it")
                 dbtag = Tags()
                 dbtag.tag = tag
                 session.add(dbtag)
                 session.commit()
-                dbquestiontag.tag_id = dbtag.id
                 self.dbtags.append(dbtag)
+                dbquestiontag.tag_id = dbtag.id
             dbquestiontagslist.append(dbquestiontag)
         return dbquestiontagslist
 
@@ -223,12 +250,9 @@ class Stack(object):
         all_answers = []
         url = self.url + '/2.2/questions/'+str(dbquestion.id)+'/answers?'
         url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
-        print(url)
-        logging.info("Getting answers for question" + dbquestion.title)
+        logging.debug("Getting answers for question" + dbquestion.title)
         if not self.debug:
-            stream = requests.get(url, verify=False)
-            data = stream.text
-            print(data)
+            data = self._get_api_data(url)
         else:
             data = StackSampleData.answers
 
@@ -263,12 +287,9 @@ class Stack(object):
         if kind == 'answer': url = self.url + '/2.2/answers/'
         url += str(dbpost.id) +'/comments?'
         url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key+'&'
-        print(url)
-        logging.info("Getting comments for " + str(dbpost.id))
+        logging.debug("Getting comments for " + str(dbpost.id))
         if not self.debug:
-            stream = requests.get(url, verify=False)
-            data = stream.text
-            print (data)
+            data = self._get_api_data(url)
         else:
             data = StackSampleData.comments
 
@@ -298,11 +319,8 @@ class Stack(object):
         if user_id is None: return
         url = self.url + '/2.2/users/'+str(user_id)+'?'
         url += 'order=desc&sort=reputation&site=stackoverflow&key='+self.api_key
-        print(url)
         if not self.debug:
-            stream = requests.get(url, verify=False)
-            data = stream.text
-            print(data)
+            data = self._get_api_data(url)
         else:
             data = StackSampleData.users
 
