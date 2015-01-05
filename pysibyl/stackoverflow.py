@@ -328,7 +328,12 @@ class Stack(object):
         parser = JSONParser(unicode(data))
         parser.parse()
         # [u'has_more', u'items', u'quota_max', u'quota_remaining']
-        data = parser.data['items']
+        if 'items' in parser.data:
+            data = parser.data['items']
+        else:
+            logging.error("No items in comments")
+            logging.error(parser.data)
+            return
 
         for comment in data:
             dbcomment = Comments()
