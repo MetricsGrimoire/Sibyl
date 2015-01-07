@@ -469,7 +469,7 @@ class Stack(object):
     def report(self):
         logging.info("Completed.")
         print "Total number of users added " + str(self.total_users)
-        print "Total number of queries checked " + str(self.total_questions)
+        print "Total number of questions checked " + str(self.total_questions)
         print "Total number of answers added " + str(self.total_answers)
         print "Total number of comments added " + str(self.total_comments)
         print "Total number of api queries " + str(self.api_queries)
