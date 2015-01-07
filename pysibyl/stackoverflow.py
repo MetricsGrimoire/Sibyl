@@ -43,10 +43,11 @@ class StackSampleData(object):
         StackSampleData.answers = '{"items":[{"owner":{"reputation":128,"user_id":2241405,"user_type":"registered","accept_rate":67,"profile_image":"https://www.gravatar.com/avatar/c1116dfd17a4e1c51736b9e4a8a54d32?s=128&d=identicon&r=PG","display_name":"AkoSi Asiong","link":"http://stackoverflow.com/users/2241405/akosi-asiong"},"is_accepted":false,"community_owned_date":1365692915,"score":11,"last_activity_date":1419095927,"last_edit_date":1419095927,"creation_date":1365692915,"answer_id":15952367,"question_id":4},{"owner":{"reputation":8536,"user_id":39,"user_type":"registered","accept_rate":76,"profile_image":"https://www.gravatar.com/avatar/ea7063d6a51a923ca945008d137aaaa0?s=128&d=identicon&r=PG","display_name":"huseyint","link":"http://stackoverflow.com/users/39/huseyint"},"is_accepted":false,"score":61,"last_activity_date":1405089748,"last_edit_date":1405089748,"creation_date":1217600608,"answer_id":86,"question_id":4},{"owner":{"reputation":139,"user_id":1391700,"user_type":"registered","profile_image":"https://www.gravatar.com/avatar/fa3e75ad5d1b10a30f05a67a84c8a85c?s=128&d=identicon&r=PG","display_name":"Darryl","link":"http://stackoverflow.com/users/1391700/darryl"},"is_accepted":false,"score":11,"last_activity_date":1350215708,"last_edit_date":1350215708,"creation_date":1336875025,"answer_id":10568821,"question_id":4},{"owner":{"reputation":5343,"user_id":55,"user_type":"registered","accept_rate":90,"profile_image":"https://www.gravatar.com/avatar/fcc79759f6398caee5df36cde61b36b7?s=128&d=identicon&r=PG","display_name":"Ryan Fox","link":"http://stackoverflow.com/users/55/ryan-fox"},"is_accepted":false,"score":27,"last_activity_date":1350215680,"last_edit_date":1350215680,"creation_date":1217598786,"answer_id":78,"question_id":4},{"owner":{"reputation":16611,"user_id":356,"user_type":"registered","accept_rate":100,"profile_image":"https://www.gravatar.com/avatar/d7903d8d8a0ef0b446d12906bc32dae8?s=128&d=identicon&r=PG","display_name":"Dinah","link":"http://stackoverflow.com/users/356/dinah"},"is_accepted":false,"score":21,"last_activity_date":1350215663,"last_edit_date":1350215663,"creation_date":1227191802,"answer_id":305467,"question_id":4}],"has_more":true,"quota_max":10000,"quota_remaining":9971}'
         # User
         StackSampleData.users = '{"items":[{"badge_counts":{"bronze":121,"silver":93,"gold":20},"account_id":285,"is_employee":false,"last_modified_date":1406421468,"last_access_date":1420310000,"reputation_change_year":5,"reputation_change_quarter":5,"reputation_change_month":5,"reputation_change_week":0,"reputation_change_day":0,"reputation":16611,"creation_date":1217898789,"user_type":"registered","user_id":356,"age":35,"accept_rate":100,"location":"North Carolina","website_url":"","link":"http://stackoverflow.com/users/356/dinah","display_name":"Dinah","profile_image":"https://www.gravatar.com/avatar/d7903d8d8a0ef0b446d12906bc32dae8?s=128&d=identicon&r=PG"}],"has_more":false,"quota_max":10000,"quota_remaining":9961}'
+        # Users ids
+        StackSampleData.users_ids = '1122983;1237811;1376515;856634;725306;4209131;2034990;2617491;2547973;1339560;3248801;2377988;2052543;3854255;1496037;4124834;729403;1906518;3849477;2700550;4201189;2517338;2159867;379235;2085626;4204340;2072156;818075;1549354;3647002;1290530;3773466;2902165;3576706;3423953;4227698;801354;818716;4230374;2980517;1348379;3827568;1136372;4183485;1106178;4234491;3814640;3666184;2669143;1578941;1809645;2585791;4245183;638052;2207529;445190;4233219;1953145;3480706;4056263;1921070;4132925;4252762;1189959;2393622;3681243;2317607;2187846;1349189;3538533;223934;120606;1974184;2312688;786326;3966820;2329208;3101102;3170123;2211642;3593497;3073861;4270940;348081;2796352;1184247;3405979;4211123;1382814;2580412;1945334;3442820;4284380;3849972;3567546;368532;3655193;1361087;1658441;4269564'
 
 class Stack(object):
-    """Stack main class
-    """
+    """Stack main class"""
 
     def __init__(self, url, api_key, tags, session):
         self.url = url
@@ -60,6 +61,9 @@ class Stack(object):
         self.session = session
         self.pagesize = 100 # max for stacjoverflow
         self.api_limit = 10000 # max default
+        self.user_ids_questions = []
+        self.user_ids_answers = []
+        self.user_ids_comments = []
         StackSampleData.init()
 
     def _get_url(self):
@@ -69,13 +73,18 @@ class Stack(object):
         logging.info(url)
         stream = requests.get(url, verify=False)
         data = stream.text
-        if 'quota_remaining' in stream.json():
-            self.api_limit = stream.json()['quota_remaining']
-            if self.api_limit % 100 == 0:
-                logging.info("Quota remaining " + str(self.api_limit))
-            if self.api_limit < 10:
-                logging.info("API consumed. Can't continue")
-                raise Exception
+        try:
+            if 'quota_remaining' in stream.json():
+                self.api_limit = stream.json()['quota_remaining']
+                if self.api_limit % 100 == 0:
+                    logging.info("Quota remaining " + str(self.api_limit))
+                if self.api_limit < 10:
+                    logging.info("API consumed. Can't continue")
+                    raise Exception
+        except:
+            logging.error("No JSON answer from Stack API")
+            print data
+            raise Exception
         logging.debug(data)
         return data
 
@@ -100,8 +109,8 @@ class Stack(object):
 
         return dbquestion
 
-    def questions(self, tag):
-        logging.debug("Getting questions for " + tag)
+    def process_questions(self, tag):
+        logging.debug("Processing questions for " + tag)
 
         questions = []
         has_more = True
@@ -120,6 +129,7 @@ class Stack(object):
         page = 1
         done = 0
         while has_more:
+            questions_ids = [] # used to get answers and comments
             url = base_url + '&' + 'pagesize='+str(self.pagesize)+'&'+'page='+str(page)
             if not self.debug:
                 data = self._get_api_data(url)
@@ -141,8 +151,11 @@ class Stack(object):
                 dbquestion = Questions()
                 if 'user_id' in question['owner']:
                     dbquestion.author_identifier = question['owner']['user_id']
+                    if dbquestion.author_identifier not in self.user_ids_questions:
+                        self.user_ids_questions.append(dbquestion.author_identifier)
                 dbquestion.answer_count = question['answer_count']
                 dbquestion.question_identifier = question['question_id']
+                questions_ids.append(question['question_id'])
                 dbquestion.view_count = question['view_count']
                 if question['last_activity_date'] is not None:
                     dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_date'])).strftime('%Y-%m-%d %H:%M:%S')
@@ -167,6 +180,14 @@ class Stack(object):
 
                 if len(questions) % 10 == 0: logging.info("Done: " + str(done) + "/"+str(total))
             logging.info("Done: " + str(done) + "/"+str(total))
+
+            ids = ";".join([str(x) for x in questions_ids])
+            # Get all answers for the pagesize questions
+            self.get_answers(ids)
+            # Get all comments for the pagesize questions
+            self.get_comments(ids)
+            # TODO: pending comments for answers
+
         return questions
 
 
@@ -282,116 +303,150 @@ class Stack(object):
                 dbquestiontag.tag_id = dbtag.id
 
             self.session.add(dbquestiontag)
-            self.session.commit()
+        self.session.commit()
 
-    def answers(self, dbquestion):
-        all_answers = []
-        url = self.url + '/2.2/questions/'+str(dbquestion.id)+'/answers?'
-        url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
-        url += '&' + 'pagesize='+str(self.pagesize)
-        logging.debug("Getting answers for question" + dbquestion.title)
-        if not self.debug:
-            data = self._get_api_data(url)
-        else:
-            data = StackSampleData.answers
+    def get_answers(self, dbquestion_ids):
+        """ Get all answers for the list of question ids """
+        has_more = True
+        page = 1
+        base_url = self.url + '/2.2/questions/'+str(dbquestion_ids)+'/answers?'
+        base_url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
+        base_url += '&' + 'pagesize='+str(self.pagesize)
+        logging.debug("Getting answers for dbquestion ids" + str(dbquestion_ids))
 
-        parser = JSONParser(unicode(data))
-        parser.parse()
-        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
-        data = parser.data['items']
+        while has_more:
+            url = base_url + "&page="+str(page)
+            if not self.debug:
+                data = self._get_api_data(url)
+            else:
+                has_more = False
+                data = StackSampleData.answers
 
-        for answer in data:
-            dbanswer = Answers()
-            dbanswer.identifier = answer['answer_id']
-            # dbanswer.body = text
-            if 'user_id' in answer['owner']:
-                dbanswer.user_identifier = answer['owner']['user_id']
-            if answer['question_id'] != dbquestion.id:
-                logging.error("Wrong answers for question detected")
-            dbanswer.question_identifier = answer['question_id']
-            create_date = datetime.datetime.fromtimestamp(int(answer['creation_date']))
-            dbanswer.submitted_on = create_date.strftime('%Y-%m-%d %H:%M:%S')
-            dbanswer.votes = answer['score']
-
-            self.session.add(dbanswer)
-            self.session.commit()
-
-            all_answers.append(dbanswer)
-
-        return all_answers
-
-
-    def get_comments(self, dbpost, kind = 'question'):
-        # coments associated to a post (question or answer) that question
-        url = self.url
-        if kind == 'question': url = self.url + '/2.2/questions/'
-        if kind == 'answer': url = self.url + '/2.2/answers/'
-        url += str(dbpost.id) +'/comments?'
-        url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key
-        url += '&' + 'pagesize='+str(self.pagesize)
-        logging.debug("Getting comments for " + str(dbpost.id))
-        if not self.debug:
-            data = self._get_api_data(url)
-        else:
-            data = StackSampleData.comments
-
-        parser = JSONParser(unicode(data))
-        parser.parse()
-        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
-        if 'items' in parser.data:
+            parser = JSONParser(unicode(data))
+            parser.parse()
+            # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+            has_more = parser.data['has_more']
+            page += 1
             data = parser.data['items']
-        else:
-            logging.error("No items in comments")
-            logging.error(parser.data)
-            return
 
-        for comment in data:
-            dbcomment = Comments()
+            for answer in data:
+                dbanswer = Answers()
+                dbanswer.identifier = answer['answer_id']
+                # dbanswer.body = text
+                if 'user_id' in answer['owner']:
+                    dbanswer.user_identifier = answer['owner']['user_id']
+                    if dbanswer.user_identifier not in self.user_ids_answers:
+                        self.user_ids_answers.append(dbanswer.user_identifier)
+                dbanswer.question_identifier = answer['question_id']
+                create_date = datetime.datetime.fromtimestamp(int(answer['creation_date']))
+                dbanswer.submitted_on = create_date.strftime('%Y-%m-%d %H:%M:%S')
+                dbanswer.votes = answer['score']
 
-            # question or answer identifier
-            if kind == "question":
-                dbcomment.question_identifier = dbpost.id
-            if kind == "answer":
-                dbcomment.answer_identifier = dbpost.id
-            if 'body' in comment.keys(): dbcomment.body = comment.body
-            if 'user_id' in comment['owner']:
-                dbcomment.user_identifier = comment['owner']['user_id']
-            cdate = datetime.datetime.fromtimestamp(int(comment['creation_date']))
-            dbcomment.submitted_on = cdate.strftime('%Y-%m-%d %H:%M:%S')
+                self.session.add(dbanswer)
+                self.user_ids_answers.append(dbanswer.user_identifier)
+            self.session.commit()
+        return
 
-            self.session.add(dbcomment)
+
+    def get_comments(self, dbpost_ids, kind = 'question'):
+        # coments associated to a post (question or answer) that question
+        if kind == 'question': base_url = self.url + '/2.2/questions/'
+        if kind == 'answer': base_url = self.url + '/2.2/answers/'
+        base_url += str(dbpost_ids) +'/comments?'
+        base_url += 'order=desc&sort=creation&site=stackoverflow&key='+self.api_key
+        base_url += '&' + 'pagesize='+str(self.pagesize)
+        logging.debug("Getting comments for " + str(dbpost_ids))
+        has_more = True
+        page = 1
+
+        while has_more:
+            url = base_url + "&page="+str(page)
+            if not self.debug:
+                data = self._get_api_data(url)
+            else:
+                data = StackSampleData.comments
+                has_more = False
+
+            parser = JSONParser(unicode(data))
+            parser.parse()
+            # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+            has_more = parser.data['has_more']
+            page += 1
+            if 'items' in parser.data:
+                data = parser.data['items']
+            else:
+                logging.error("No items in comments")
+                logging.error(parser.data)
+                return
+
+            for comment in data:
+                dbcomment = Comments()
+
+                # question or answer identifier
+                if kind == "question":
+                    dbcomment.question_identifier = comment['post_id']
+                if kind == "answer":
+                    dbcomment.answer_identifier = comment['post_id']
+                if 'body' in comment.keys(): dbcomment.body = comment['body']
+                if 'user_id' in comment['owner']:
+                    dbcomment.user_identifier = comment['owner']['user_id']
+                    if dbcomment.user_identifier not in self.user_ids_comments:
+                        self.user_ids_comments.append(dbcomment.user_identifier)
+
+                cdate = datetime.datetime.fromtimestamp(int(comment['creation_date']))
+                dbcomment.submitted_on = cdate.strftime('%Y-%m-%d %H:%M:%S')
+
+                self.session.add(dbcomment)
             self.session.commit()
 
-    def get_user(self, user_id):
-        if user_id is None: return
-        url = self.url + '/2.2/users/'+str(user_id)+'?'
-        url += 'order=desc&sort=reputation&site=stackoverflow&key='+self.api_key
-        if not self.debug:
-            data = self._get_api_data(url)
-        else:
-            data = StackSampleData.users
+    def process_users(self, users_ids):
+        if users_ids is None: return
+        if len(users_ids.split(";"))>self.pagesize:
+            logging.error("Max ids overcome in process_users " + users_ids)
+            raise Exception
+        base_url = self.url + '/2.2/users/'+str(users_ids)+'?'
+        base_url += 'order=desc&sort=reputation&site=stackoverflow&key='+self.api_key
+        base_url += '&' + 'pagesize='+str(self.pagesize)
+        all_users = []
+        has_more = True
+        page = 1
 
-        parser = JSONParser(unicode(data))
-        parser.parse()
-        # [u'has_more', u'items', u'quota_max', u'quota_remaining']
-        data = parser.data['items']
-        user = data[0]
+        while has_more:
+            url = base_url + "&page="+str(page)
+            if not self.debug:
+                data = self._get_api_data(url)
+            else:
+                data = StackSampleData.users
+                has_more = False
+            parser = JSONParser(unicode(data))
+            parser.parse()
+            # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+            if 'has_more' not in parser.data:
+                logging.error("No has_more in JSON response")
+                print parser.data
+                raise
+            has_more = parser.data['has_more']
+            data = parser.data['items']
 
-        dbuser = People()
-        dbuser.username = user['display_name']
-        dbuser.reputation = user['reputation']
-        if 'profile_image' in user:
-            dbuser.avatar = user['profile_image']
-        dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_access_date'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.identifier = user['user_id']
+            for user in data:
+                dbuser = People()
+                dbuser.username = user['display_name']
+                dbuser.reputation = user['reputation']
+                if 'profile_image' in user:
+                    dbuser.avatar = user['profile_image']
+                dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_access_date'])).strftime('%Y-%m-%d %H:%M:%S')
+                dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['creation_date'])).strftime('%Y-%m-%d %H:%M:%S')
+                dbuser.identifier = user['user_id']
+                self.session.add(dbuser)
+            self.session.commit()
 
-        return dbuser
+            all_users.append(dbuser)
+
+        return all_users
 
     def parse(self):
         # Initial parsing of general info, users and questions
         tags = self.tags.split(",")
-        all_users = []
 
         logging.info("Stack parsing from: " + self.url)
 
@@ -400,34 +455,20 @@ class Stack(object):
             tags = self.get_search_tags()
 
         for tag in tags:
-            questions = self.questions(tag)
-            users_id = []
+            # Process questions, answers and comments
+            self.process_questions(tag)
 
-            for dbquestion in questions:
-                users_id.append(dbquestion.author_identifier)
+        users_id = self.user_ids_questions+self.user_ids_answers
+        users_id += self.user_ids_comments
+        if self.debug: users_id = StackSampleData.users_ids.split(";")
+        logging.info("TOTAL NUMBER OF USERS " + str(len(users_id)))
 
-                # Tags
-                self.get_dbquestiontags(dbquestion.id, dbquestion.tags)
-
-                # Comments
-                self.get_comments(dbquestion,"question")
-
-                # Answers
-                answers = self.answers(dbquestion)
-                for answer in answers:
-                    users_id.append(answer.user_identifier)
-                    # comments per answer
-                    # Disabled to avoid consuming API max queries
-                    # self.get_comments(answer, "answer")
-
-                #Users
-                for user_id in users_id:
-                    if user_id not in all_users:
-                        #User not previously inserted
-                        user = self.get_user(user_id)
-                        if user is None:
-                            logging.debug("None user found")
-                            continue
-                        self.session.add(user)
-                        self.session.commit()
-                        all_users.append(user_id)
+        while len(users_id)>0:
+            ids = []
+            for i in range(self.pagesize):
+                if len(users_id)>0:
+                    val = users_id.pop()
+                    if val is not None: ids.append(val)
+                    else: logging.info("Found None user")
+            ids = ";".join([str(x) for x in ids])
+            self.process_users(ids)
