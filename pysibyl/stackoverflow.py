@@ -17,12 +17,13 @@
 # Authors:
 #    Alvaro del Castillo <acs@bitergia.com>   
 #
-# Parser for Stackoverflow QA tool
+# Parser for Stackoverflow tool using https://api.stackexchange.com
 
 import datetime
 import json
 import logging
 import requests
+import time
 
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
@@ -61,17 +62,20 @@ class Stack(object):
         self.session = session
         self.pagesize = 100 # max for stacjoverflow
         self.api_limit = 10000 # max default
+        self.api_queries = 0
         self.user_ids_questions = []
         self.user_ids_answers = []
         self.user_ids_comments = []
+        self.total_users = 0
+        self.total_questions = 0
+        self.total_answers = 0
+        self.total_comments = 0
         StackSampleData.init()
-
-    def _get_url(self):
-        return self.url + "/2.2/tags?key="+self.api_key+"&"
 
     def _get_api_data(self, url):
         logging.info(url)
         stream = requests.get(url, verify=False)
+        self.api_queries += 1
         data = stream.text
         try:
             if 'quota_remaining' in stream.json():
@@ -81,6 +85,11 @@ class Stack(object):
                 if self.api_limit < 10:
                     logging.info("API consumed. Can't continue")
                     raise Exception
+            if 'backoff' in stream.json():
+                # We must wait backoff seconds before continuing
+                backoff = stream.json()['backoff']
+                logging.info("Waiting " + str(backoff) + " seconds as backoff request from API.")
+                time.sleep(backoff)
         except:
             logging.error("No JSON answer from Stack API")
             print data
@@ -88,12 +97,14 @@ class Stack(object):
         logging.debug(data)
         return data
 
-    def question_to_db(self, dbquestion):
+    def question_new_or_changed(self, dbquestion):
+        question_changed = True
+
         updated, found = self.is_question_updated(dbquestion, self.session)
         if found and updated:
             # no changes needed
             logging.debug ("    * NOT updating information for this question")
-            return
+            question_changed = False
 
         if found and not updated:
             # So far using the simpliest approach: remove all info related to
@@ -104,15 +115,35 @@ class Stack(object):
             logging.debug ("Restarting dataset for this question")
             self.remove_question(dbquestion, self.session)
 
-        self.session.add(dbquestion)
-        self.session.commit()
+        return question_changed
 
-        return dbquestion
+    def process_dbquestiontags(self, question_id, tags):
+        """ All tags should exist already in the db """
+        for tag in tags:
+            dbquestiontag = QuestionsTags()
+            dbquestiontag.question_identifier = question_id
+            for dbtag in self.dbtags:
+                if dbtag.tag == tag:
+                    dbquestiontag.tag_id = dbtag.id
+                    break
+            if dbquestiontag.tag_id is None:
+                logging.debug(tag + " NOT found. Adding it")
+                # First look for it in the db
+                dbtag = self.session.query(Tags).filter(Tags.tag == tag).first()
+                if dbtag is None:
+                    dbtag = Tags()
+                    dbtag.tag = tag
+                    self.session.add(dbtag)
+                    self.session.commit()
+                self.dbtags.append(dbtag)
+                dbquestiontag.tag_id = dbtag.id
+
+            self.session.add(dbquestiontag)
+        self.session.commit()
 
     def process_questions(self, tag):
         logging.debug("Processing questions for " + tag)
 
-        questions = []
         has_more = True
         base_url = self.url + '/2.2/questions?'
         base_url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key+'&'
@@ -151,11 +182,8 @@ class Stack(object):
                 dbquestion = Questions()
                 if 'user_id' in question['owner']:
                     dbquestion.author_identifier = question['owner']['user_id']
-                    if dbquestion.author_identifier not in self.user_ids_questions:
-                        self.user_ids_questions.append(dbquestion.author_identifier)
                 dbquestion.answer_count = question['answer_count']
                 dbquestion.question_identifier = question['question_id']
-                questions_ids.append(question['question_id'])
                 dbquestion.view_count = question['view_count']
                 if question['last_activity_date'] is not None:
                     dbquestion.last_activity_at = datetime.datetime.fromtimestamp(int(question['last_activity_date'])).strftime('%Y-%m-%d %H:%M:%S')
@@ -169,33 +197,38 @@ class Stack(object):
                 dbquestion.last_activity_by = None
                 dbquestion.body = None # TODO: we need to get it
                 # Additional fields in Stack: is_answered, accepted_answer_id
-                # Additional data not to be store directly
-                dbquestion.tags = question['tags']
 
-                dbquestion = self.question_to_db(dbquestion)
+                if self.question_new_or_changed(dbquestion):
+                    # Question is new or changed
+                    self.session.add(dbquestion)
+                    self.session.commit()
+                    self.process_dbquestiontags(dbquestion.id, question['tags'])
+                    questions_ids.append(question['question_id'])
+                    if dbquestion.author_identifier:
+                        if dbquestion.author_identifier not in self.user_ids_questions:
+                            self.user_ids_questions.append(dbquestion.author_identifier)
 
-                if dbquestion is not None: questions.append(dbquestion)
-
+                self.total_questions += 1
                 done +=1
 
-                if len(questions) % 10 == 0: logging.info("Done: " + str(done) + "/"+str(total))
+                if self.total_questions % 10 == 0: logging.info("Done: " + str(done) + "/"+str(total))
+
             logging.info("Done: " + str(done) + "/"+str(total))
 
             ids = ";".join([str(x) for x in questions_ids])
-            # Get all answers for the pagesize questions
-            self.get_answers(ids)
-            # Get all comments for the pagesize questions
-            self.get_comments(ids)
-            # TODO: pending comments for answers
-
-        return questions
+            if len(ids)>0:
+                # Get all answers for the pagesize questions updated
+                self.process_answers(ids)
+                # Get all comments for the pagesize questions updated
+                self.process_comments(ids)
+        return
 
 
     def get_search_tags(self):
         found_tags = []
 
         logging.info("Getting all tags based on: " + self.tags)
-        url = self._get_url()
+        url = self.url + "/2.2/tags?key="+self.api_key+"&"
         url += "order=desc&sort=popular&site=stackoverflow"
         url += "&inname=" + str(self.tags)
         if not self.debug:
@@ -281,31 +314,7 @@ class Stack(object):
 
         return updated, found
 
-    def get_dbquestiontags(self, question_id, tags):
-        """ All tags should exist already in the db """
-        for tag in tags:
-            dbquestiontag = QuestionsTags()
-            dbquestiontag.question_identifier = question_id
-            for dbtag in self.dbtags:
-                if dbtag.tag == tag:
-                    dbquestiontag.tag_id = dbtag.id
-                    break
-            if dbquestiontag.tag_id is None:
-                logging.debug(tag + " NOT found. Adding it")
-                # First look for it in the db
-                dbtag = self.session.query(Tags).filter(Tags.tag==tag).first()
-                if dbtag is None:
-                    dbtag = Tags()
-                    dbtag.tag = tag
-                    self.session.add(dbtag)
-                    self.session.commit()
-                self.dbtags.append(dbtag)
-                dbquestiontag.tag_id = dbtag.id
-
-            self.session.add(dbquestiontag)
-        self.session.commit()
-
-    def get_answers(self, dbquestion_ids):
+    def process_answers(self, dbquestion_ids):
         """ Get all answers for the list of question ids """
         has_more = True
         page = 1
@@ -313,6 +322,7 @@ class Stack(object):
         base_url += 'order=desc&sort=activity&site=stackoverflow&key='+self.api_key
         base_url += '&' + 'pagesize='+str(self.pagesize)
         logging.debug("Getting answers for dbquestion ids" + str(dbquestion_ids))
+        dbanswers_ids = []
 
         while has_more:
             url = base_url + "&page="+str(page)
@@ -332,6 +342,7 @@ class Stack(object):
             for answer in data:
                 dbanswer = Answers()
                 dbanswer.identifier = answer['answer_id']
+                dbanswers_ids.append(dbanswer.identifier)
                 # dbanswer.body = text
                 if 'user_id' in answer['owner']:
                     dbanswer.user_identifier = answer['owner']['user_id']
@@ -343,12 +354,21 @@ class Stack(object):
                 dbanswer.votes = answer['score']
 
                 self.session.add(dbanswer)
+                self.total_answers += 1
                 self.user_ids_answers.append(dbanswer.user_identifier)
             self.session.commit()
-        return
+        # Time to get comments for all answers
+        while len(dbanswers_ids)>0:
+            ids = []
+            for i in range(self.pagesize):
+                if len(dbanswers_ids)>0:
+                    val = dbanswers_ids.pop()
+                    if val is not None: ids.append(val)
+                    else: logging.info("Found None Answer")
+            ids = ";".join([str(x) for x in ids])
+            self.process_comments(ids,'answer')
 
-
-    def get_comments(self, dbpost_ids, kind = 'question'):
+    def process_comments(self, dbpost_ids, kind = 'question'):
         # coments associated to a post (question or answer) that question
         if kind == 'question': base_url = self.url + '/2.2/questions/'
         if kind == 'answer': base_url = self.url + '/2.2/answers/'
@@ -370,6 +390,10 @@ class Stack(object):
             parser = JSONParser(unicode(data))
             parser.parse()
             # [u'has_more', u'items', u'quota_max', u'quota_remaining']
+            if 'has_more' not in parser.data:
+                logging.error("No has_more in JSON response. Exiting.")
+                print parser.data
+                raise
             has_more = parser.data['has_more']
             page += 1
             if 'items' in parser.data:
@@ -397,6 +421,7 @@ class Stack(object):
                 dbcomment.submitted_on = cdate.strftime('%Y-%m-%d %H:%M:%S')
 
                 self.session.add(dbcomment)
+                self.total_comments += 1
             self.session.commit()
 
     def process_users(self, users_ids):
@@ -407,7 +432,6 @@ class Stack(object):
         base_url = self.url + '/2.2/users/'+str(users_ids)+'?'
         base_url += 'order=desc&sort=reputation&site=stackoverflow&key='+self.api_key
         base_url += '&' + 'pagesize='+str(self.pagesize)
-        all_users = []
         has_more = True
         page = 1
 
@@ -440,9 +464,15 @@ class Stack(object):
                 self.session.add(dbuser)
             self.session.commit()
 
-            all_users.append(dbuser)
+        return
 
-        return all_users
+    def report(self):
+        logging.info("Completed.")
+        print "Total number of users added " + str(self.total_users)
+        print "Total number of queries checked " + str(self.total_questions)
+        print "Total number of answers added " + str(self.total_answers)
+        print "Total number of comments added " + str(self.total_comments)
+        print "Total number of api queries " + str(self.api_queries)
 
     def parse(self):
         # Initial parsing of general info, users and questions
@@ -460,8 +490,10 @@ class Stack(object):
 
         users_id = self.user_ids_questions+self.user_ids_answers
         users_id += self.user_ids_comments
+        # Remove duplicates using sets
+        users_id = list(set(users_id))
         if self.debug: users_id = StackSampleData.users_ids.split(";")
-        logging.info("TOTAL NUMBER OF USERS " + str(len(users_id)))
+        self.total_users = len(users_id)
 
         while len(users_id)>0:
             ids = []
@@ -472,3 +504,5 @@ class Stack(object):
                     else: logging.info("Found None user")
             ids = ";".join([str(x) for x in ids])
             self.process_users(ids)
+
+        self.report()
