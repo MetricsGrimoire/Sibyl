@@ -117,11 +117,11 @@ class Stack(object):
 
         return question_changed
 
-    def process_dbquestiontags(self, question_id, tags):
+    def process_dbquestiontags(self, question_identifier, tags):
         """ All tags should exist already in the db """
         for tag in tags:
             dbquestiontag = QuestionsTags()
-            dbquestiontag.question_identifier = question_id
+            dbquestiontag.question_identifier = question_identifier
             for dbtag in self.dbtags:
                 if dbtag.tag == tag:
                     dbquestiontag.tag_id = dbtag.id
@@ -202,7 +202,7 @@ class Stack(object):
                     # Question is new or changed
                     self.session.add(dbquestion)
                     self.session.commit()
-                    self.process_dbquestiontags(dbquestion.id, question['tags'])
+                    self.process_dbquestiontags(dbquestion.question_identifier, question['tags'])
                     questions_ids.append(question['question_id'])
                     if dbquestion.author_identifier:
                         if dbquestion.author_identifier not in self.user_ids_questions:
