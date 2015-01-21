@@ -54,16 +54,12 @@ class Discourse(object):
     def process_questions(self, category):
         logging.debug("Processing questions for " + category)
 
-        update_users = False
-        url = self.url + "/c/" + category + ".json"
-        stream = requests.get(url, verify=False)
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        data = parser.data
+        def update_users(users):
+            for user in users:
+                if user['username'] not in self.user_ids_questions:
+                    self.user_ids_questions.append(user['username'])
 
-        data = data['topic_list']['topics']
-
-        for question in data:
+        def process_question(question):
             dbquestion = Questions()
             dbquestion.author_identifier = question['posters'][0]['user_id']
             dbquestion.answer_count = question['reply_count']
@@ -91,15 +87,33 @@ class Discourse(object):
                 self.process_answers(question['slug'])
                 self.process_dbquestiontags(dbquestion.question_identifier, category)
                 update_users = False
-
             self.total_questions += 1
 
-        if update_users:
-            # If some question is updated we need to process all users
-            users = parser.data['users']
-            for user in users:
-                if user['username'] not in self.user_ids_questions:
-                    self.user_ids_questions.append(user['username'])
+
+        url = self.url + "/c/" + category + ".json"
+        stream = requests.get(url, verify=False)
+        parser = JSONParser(unicode(stream.text))
+        parser.parse()
+        data = parser.data
+
+        data = data['topic_list']['topics']
+
+        for question in data:
+            process_question(question)
+        update_users(parser.data['users'])
+
+        while 'more_topics_url' in parser.data['topic_list']:
+            url = self.url + parser.data['topic_list']['more_topics_url']
+            stream = requests.get(url, verify=False)
+            parser = JSONParser(unicode(stream.text))
+            parser.parse()
+            data = parser.data
+
+            data = data['topic_list']['topics']
+
+            for question in data:
+                process_question(question)
+            update_users(parser.data['users'])
         return
 
     def remove_question(self, dbquestion, session):
