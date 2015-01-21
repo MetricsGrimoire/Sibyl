@@ -242,19 +242,7 @@ class Discourse(object):
     def process_answers(self, question_slug):
         """ Get all answers for the question with slug dbquestion_slug  """
 
-        url = self.url + "/t/" + question_slug + ".json"
-        logging.info("Getting answers for " + question_slug)
-        logging.info(url)
-        stream = requests.get(url, verify=False)
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-
-        data = parser.data
-
-        question_id = parser.data['id']
-        data = data['post_stream']['posts']
-
-        for answer in data:
+        def process_answer(answer):
             dbanswer = Answers()
             dbanswer.identifier = answer['id']
             # dbanswer.body = text
@@ -268,8 +256,55 @@ class Discourse(object):
 
             self.session.add(dbanswer)
             self.total_answers += 1
+
+
+        url = self.url + "/t/" + question_slug + ".json"
+        logging.info("Getting answers for " + question_slug)
+        logging.info(url)
+        stream = requests.get(url, verify=False)
+        parser = JSONParser(unicode(stream.text))
+        try:
+            parser.parse()
+        except:
+            logging.error("Cant parse answers for question " + question_slug)
+            print unicode(stream.text)
+            return
+
+        data = parser.data
+
+        question_id = parser.data['id']
+        data = data['post_stream']['posts']
+
+        for answer in data:
+            process_answer(answer)
         self.session.commit()
-        # In discourse answers does not have comments
+
+        # It there are more than 20 answers we need to retrieve the rest
+        discoure_max_answers_query = 20
+
+        if len(parser.data['post_stream']['stream']) > 20:
+            pending = parser.data['post_stream']['stream']
+            for i in range(0,discoure_max_answers_query): pending.pop(0)
+            url = self.url + "/t/"+ str(question_id) + "/posts.json?"
+            for answer_id in pending:
+                url += "post_ids%5B%5D="+str(answer_id)+"&"
+            stream = requests.get(url, verify=False)
+            parser = JSONParser(unicode(stream.text))
+            try:
+                parser.parse()
+            except:
+                logging.error("Cant parse additional answers for question " + question_slug)
+                logging.error(url)
+                print unicode(stream.text)
+                return
+
+            data = parser.data
+
+            data = data['post_stream']['posts']
+
+            for answer in data:
+                process_answer(answer)
+            self.session.commit()
 
     def process_users(self, users_ids):
         if users_ids is None: return
