@@ -179,7 +179,7 @@ if __name__ == '__main__':
         stack = Stack(opts.url, opts.api_key, opts.tags, session)
         stack.parse()
     elif opts.type == "discourse":
-        # askbot backend
+        # discourse backend
         discourse = Discourse(opts.url, session)
         discourse.parse()
     else:
