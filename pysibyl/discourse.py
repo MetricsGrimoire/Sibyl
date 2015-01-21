@@ -17,11 +17,11 @@
 # Authors:
 #    Alvaro del Castillo <acs@bitergia.com>   
 #
-# Beautiful Soup HTML parser for Discourse QA tool
+# Sibyl backend for Discourse QA tool
 
-from dateutil.parser import parse
 import datetime
 import logging
+import pprint
 import re
 import requests
 
@@ -29,19 +29,33 @@ from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
 
-class QuestionsDiscourse(object):
-    """Iterator to go through the set of questions
+class Discourse(object):
+    """Discourse main class
     """
 
-    def __init__(self, url, category):
+    def __init__(self, url, session):
         self.url = url
-        self.data = None
-        self.category = category
+        self.questionHTML = None #Current question working on
+        self.alltags = []
+        self.allusers =  []
+        self.debug = False
+        self.dbtags = []
+        self.session = session
+        self.pagesize = 100 # max for stacjoverflow
+        self.api_limit = 10000 # max default
+        self.api_queries = 0
+        self.user_ids_questions = []
+        self.user_ids_answers = []
+        self.user_ids_comments = []
+        self.total_users = 0
+        self.total_questions = 0
+        self.total_answers = 0
+        self.total_comments = 0
 
-    def questions(self):
-        questions = []
+    def process_questions(self, category):
+        logging.debug("Processing questions for " + category)
 
-        url = self.url + "/c/" + self.category + ".json"
+        url = self.url + "/c/" + category + ".json"
         stream = requests.get(url, verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
@@ -49,44 +63,44 @@ class QuestionsDiscourse(object):
         data = data['topic_list']['topics']
 
         for question in data:
-            # Each of the question is initialized here
             dbquestion = Questions()
-            for poster in question['posters']:
-                if poster['description'] == 'Original Poster':
-                    dbquestion.author_identifier = poster['user_id']
-                elif poster['description'] == 'Most Recent Poster':
-                    dbquestion.last_activity_by = poster['user_id']
-
-            dbquestion.answer_count = question['posts_count']
+            dbquestion.author_identifier = question['posters'][0]['user_id']
+            dbquestion.answer_count = question['reply_count']
             dbquestion.question_identifier = question['id']
             dbquestion.view_count = question['views']
             if question['last_posted_at'] is not None:
-                dbquestion.last_activity_at = parse(question['last_posted_at']).strftime('%Y-%m-%d %H:%M:%S')
+                dbquestion.last_activity_at = question['last_posted_at']
             else:
-                dbquestion.last_activity_at = parse(question['created_at']).strftime('%Y-%m-%d %H:%M:%S')
+                dbquestion.last_activity_at = question['created_at']
             dbquestion.title = question['title']
-            dbquestion.title = question['body']
-            dbquestion.url = self.url +"/t/"+question['slug']
-            dbquestion.added_at = parse(question['created_at']).strftime('%Y-%m-%d %H:%M:%S')
-            # dbquestion.score = question['score']
+            dbquestion.url = question['slug']
+            dbquestion.added_at = question['created_at']
+            dbquestion.score = question['like_count']
+            # Missing fields in Stack
+            dbquestion.last_activity_by = question['last_poster_username']
+            dbquestion.body = None
+            if 'excerpt' in question:
+                dbquestion.body = question['excerpt']
+            # Additional fields in Discourse: liked,pinned_globally, visible, highest_post_number, unseen,posts_count
+            # bumped_at, bookmarked, archived,archetype,has_summary,pinned,image_url,closed,unpinned,bumped, fancy_title
 
-            questions.append(dbquestion)
+            if self.question_new_or_changed(dbquestion):
+                # Question is new or changed
+                self.session.add(dbquestion)
+                self.session.commit()
+#                self.process_dbquestiontags(dbquestion.question_identifier, question['tags'])
+#                if dbquestion.author_identifier:
+#                    if dbquestion.author_identifier not in self.user_ids_questions:
+#                        self.user_ids_questions.append(dbquestion.author_identifier)
 
-        return questions
+            self.total_questions += 1
 
-class Discourse(object):
-    """Discourse main class
-    """
 
-    def __init__(self, url, session):
-        self.url = url
-        self.session = session
-        self.questionHTML = None #Current question working on
-        self.alltags = []
-        self.allusers =  []
-
-    def questions(self, category):
-        return QuestionsDiscourse(self.url, category).questions()
+            # Get all answers for the pagesize questions updated
+            # self.process_answers(ids)
+            # Get all comments for the pagesize questions updated
+            # self.process_comments(ids)
+        return
 
     def remove_question(self, dbquestion, session):
         # This function removes all information in cascade for
@@ -128,6 +142,26 @@ class Discourse(object):
                 session.delete(comment)
         session.commit()
 
+    def question_new_or_changed(self, dbquestion):
+        question_changed = True
+
+        updated, found = self.is_question_updated(dbquestion, self.session)
+        if found and updated:
+            # no changes needed
+            logging.debug ("    * NOT updating information for this question")
+            question_changed = False
+
+        if found and not updated:
+            # So far using the simpliest approach: remove all info related to
+            # this question and re-insert values: drop question, tags,
+            # answers and comments for question and answers.
+            # This is done in this way to avoid several 'if' clauses to
+            # control if question was found/not found or updated/not updated
+            logging.debug ("Restarting dataset for this question")
+            self.remove_question(dbquestion, self.session)
+
+        return question_changed
+
     def is_question_updated(self, dbquestion, session):
         # This function checks if the dbquestion is updated
         # according to the information found in the database
@@ -142,7 +176,7 @@ class Discourse(object):
 
         if len(questions) == 0:
             #question not found in db
-            logging.info( "    * Question not found in db")
+            logging.debug( "    * Question not found in db")
             found = False
             updated = False
 
@@ -150,13 +184,15 @@ class Discourse(object):
             # question in db
             question = questions[0]
             # question data from API
-            date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%d %H:%M:%S")
+            # 2014-06-25T20:29:21.510Z
+            date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%dT%H:%M:%S.%fZ")
             if question.last_activity_at < date:
                 #question not updated in db
-                logging.info("    * Question not updated in db")
+                logging.debug("    * Question not updated in db")
                 updated = False
 
         return updated, found
+
 
     def tags (self, dbquestion):
         tagslist = []
@@ -372,81 +408,22 @@ class Discourse(object):
 
     def parse(self):
         # Initial parsing of general info, users and questions
-        session = self.session
-        url = self.url
-
-        all_users = []
-
         for category in  self.categories():
             print category['slug']
             if 'subcategory_ids' in category:
                 logging.info("Subcategories not yet supported " + category['slug'])
                 logging.info(category['subcategory_ids'])
-            self.discourse_category_parse(category['slug'], all_users, session, url)
+            self.process_questions(category['slug'])
             break
+        return
 
-    def discourse_category_parse(self, category, all_users, session, url):
+        users_id = self.user_ids_questions+self.user_ids_answers
+        users_id += self.user_ids_comments
+        # Remove duplicates using sets
+        users_id = list(set(users_id))
+        # if self.debug: users_id = StackSampleData.users_ids.split(";")
+        self.total_users = len(users_id)
 
-        for dbquestion in self.questions(category):
-            users_id = []
+        self.process_users(users_id)
 
-            # TODO: at some point the questions() iterator should
-            # provide each "question" and not a set of them
-            print "Analyzing: " + dbquestion.url
-
-            updated, found = self.is_question_updated(dbquestion, session)
-            if found and updated:
-                # no changes needed
-                print "    * NOT updating information for this question"
-                continue
-
-            if found and not updated:
-                # So far using the simpliest approach: remove all info related to
-                # this question and re-insert values: drop question, tags, 
-                # answers and comments for question and answers.
-                # This is done in this way to avoid several 'if' clauses to 
-                # control if question was found/not found or updated/not updated
-                print "Restarting dataset for this question"
-                self.remove_question(dbquestion, session)
-
-            users_id.append(dbquestion.author_identifier)
-            session.add(dbquestion)
-            session.commit()
-
-            continue
-            #Comments
-            comments = self.question_comments(dbquestion)
-            for comment in comments:
-                session.add(comment)
-                session.commit()
-
-            #Answers
-            answers = self.answers(dbquestion)
-            for answer in answers:
-                users_id.append(answer.user_identifier)
-                session.add(answer)
-                session.commit()
-                # comments per answer
-                comments = self.answer_comments(answer)
-                for comment in comments:
-                    session.add(comment)
-                    session.commit()
-
-            #Tags
-            tags, questiontags = self.tags(dbquestion)
-            for tag in tags:
-                session.add(tag)
-                session.commit()
-            for questiontag in questiontags:
-                session.add(questiontag)
-                session.commit()
-
-            #Users
-            for user_id in users_id:
-                if user_id not in all_users:
-                    #User not previously inserted
-                    user = self.get_user(user_id)
-                    session.add(user)
-                    session.commit()
-                    all_users.append(user_id)
-
+        self.report()
