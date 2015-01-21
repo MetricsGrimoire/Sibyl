@@ -46,7 +46,6 @@ class Discourse(object):
         self.api_queries = 0
         self.user_ids_questions = []
         self.user_ids_answers = []
-        self.user_ids_comments = []
         self.total_users = 0
         self.total_questions = 0
         self.total_answers = 0
@@ -55,11 +54,13 @@ class Discourse(object):
     def process_questions(self, category):
         logging.debug("Processing questions for " + category)
 
+        update_users = False
         url = self.url + "/c/" + category + ".json"
         stream = requests.get(url, verify=False)
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
+
         data = data['topic_list']['topics']
 
         for question in data:
@@ -76,8 +77,7 @@ class Discourse(object):
             dbquestion.url = question['slug']
             dbquestion.added_at = question['created_at']
             dbquestion.score = question['like_count']
-            # Missing fields in Stack
-            dbquestion.last_activity_by = question['last_poster_username']
+            # dbquestion.last_activity_by = question['last_poster_username']
             dbquestion.body = None
             if 'excerpt' in question:
                 dbquestion.body = question['excerpt']
@@ -88,18 +88,18 @@ class Discourse(object):
                 # Question is new or changed
                 self.session.add(dbquestion)
                 self.session.commit()
-#                self.process_dbquestiontags(dbquestion.question_identifier, question['tags'])
-#                if dbquestion.author_identifier:
-#                    if dbquestion.author_identifier not in self.user_ids_questions:
-#                        self.user_ids_questions.append(dbquestion.author_identifier)
+                self.process_answers(question['slug'])
+                self.process_dbquestiontags(dbquestion.question_identifier, category)
+                update_users = False
 
             self.total_questions += 1
 
-
-            # Get all answers for the pagesize questions updated
-            # self.process_answers(ids)
-            # Get all comments for the pagesize questions updated
-            # self.process_comments(ids)
+        if update_users:
+            # If some question is updated we need to process all users
+            users = parser.data['users']
+            for user in users:
+                if user['username'] not in self.user_ids_questions:
+                    self.user_ids_questions.append(user['username'])
         return
 
     def remove_question(self, dbquestion, session):
@@ -186,94 +186,13 @@ class Discourse(object):
             # question data from API
             # 2014-06-25T20:29:21.510Z
             date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+            # date = date.replace(microsecond=0) # microsecs not stored in mysql
             if question.last_activity_at < date:
                 #question not updated in db
                 logging.debug("    * Question not updated in db")
                 updated = False
 
         return updated, found
-
-
-    def tags (self, dbquestion):
-        tagslist = []
-        questiontagslist = []
-
-        tags = self.questionHTML.getTags()
-        tagslist, questiontagslist, self.alltags = self.get_tags(dbquestion.question_identifier, tags, self.alltags)
-
-        return tagslist, questiontagslist
-
-    def get_tags(self, question_id, tags, alltags):
-        # This function inserts into the questionstags and tags tables
-        # information associated to a specific question.
-        # This returns an updated version of the tags list
-
-        dbtagslist = []
-        dbquestiontagslist = []
-
-        for tag in tags:
-            if tag not in alltags:
-                # new tag found
-                # WARNING: in case this tool is modified to be incremental,
-                # this will fail. This is due to the tags list structure is
-                # started from scratch and not initialize based on db existing data
-                alltags.append(tag)
-                # insert tag in db
-                dbtag = Tags()
-                dbtag.tag = tag
-
-                dbtagslist.append(dbtag)
-
-                #self.session.add(dbtag)
-                #self.session.commit()
-
-            tag_id = alltags.index(tag) + 1
-
-            dbquestiontag = QuestionsTags()
-            dbquestiontag.question_identifier = question_id
-            dbquestiontag.tag_id = tag_id
-
-            dbquestiontagslist.append(dbquestiontag)
-
-            #self.session.add(dbquestiontag)
-            #self.session.commit()
-
-        return dbtagslist, dbquestiontagslist, alltags
-
-
-
-    def answers(self, dbquestion):
-        # TODO: this does not really return the list of answers
-        # of a given dbquestion object. This actually returns
-        # the answers that at the point of analysis is in memory
-        return self.questionHTML.getAnswers(dbquestion.question_identifier) 
-
-
-    def question_comments(self, dbquestion):
-        # coments associated to that question
-        return self.questionHTML.getComments("question", dbquestion.question_identifier)
-
-    def answer_comments(self, dbanswer):
-        # comments associated to that answer
-        return self.questionHTML.getComments("answer", dbanswer.identifier)
-
-    def get_user(self, user_id):
-        stream = requests.get(self.url + "/api/v1/users/" + str(user_id) + "/", verify=False)
-        logging.info(stream.url)
-        #print(self.url + "/api/v1/users/" + str(user_id) + "/")
-        parser = JSONParser(unicode(stream.text))
-        parser.parse()
-        user = parser.data
-
-        dbuser = People()
-        dbuser.username = user['username']
-        dbuser.reputation = user['reputation']
-        dbuser.avatar = user['avatar']
-        dbuser.last_seen_at = datetime.datetime.fromtimestamp(int(user['last_seen_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.joined_at = datetime.datetime.fromtimestamp(int(user['joined_at'])).strftime('%Y-%m-%d %H:%M:%S')
-        dbuser.identifier = user['id']
-
-        return dbuser
 
     def categories(self):
         stream = requests.get(self.url + "/categories.json", verify=False)
@@ -282,129 +201,92 @@ class Discourse(object):
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         categories = parser.data['category_list']['categories']
-
         return categories
 
+    def process_dbquestiontags(self, question_identifier, tag):
+        dbquestiontag = QuestionsTags()
+        dbquestiontag.question_identifier = question_identifier
+        for dbtag in self.dbtags:
+            if dbtag.tag == tag:
+                dbquestiontag.tag_id = dbtag.id
+                break
+        if dbquestiontag.tag_id is None:
+            logging.debug(tag + " NOT found. Adding it")
+            # First look for it in the db
+            dbtag = self.session.query(Tags).filter(Tags.tag == tag).first()
+            if dbtag is None:
+                dbtag = Tags()
+                dbtag.tag = tag
+                self.session.add(dbtag)
+                self.session.commit()
+            self.dbtags.append(dbtag)
+            dbquestiontag.tag_id = dbtag.id
 
-
-
-    def getTags(self):
-        # Returns a list of tags
-        # This is found under the <meta name="keywords" content="">
-        # Keywords are comma separated
-
-        metas = self.bsoup.findAll('meta')
-        tags = ""
-
-        for meta in metas:
-            found = False
-            for attr, value in meta.attrs:
-                if found:
-                    found = False
-                    tags = value
-                if attr == "name" and value == "keywords":
-                    # the following loop of attr, value is the field with the body
-                    # of the question
-                    found = True
-
-        return tags.split(',')
+        self.session.add(dbquestiontag)
+        self.session.commit()
  
-    def getAnswers(self, q_id):
-        # Returns a list of answers with their comments if exist
+    def process_answers(self, question_slug):
+        """ Get all answers for the question with slug dbquestion_slug  """
 
-        answers = self.bsoup.findAll(attrs={"class" : re.compile("^post answer")})
+        url = self.url + "/t/" + question_slug + ".json"
+        logging.info("Getting answers for " + question_slug)
+        logging.info(url)
+        stream = requests.get(url, verify=False)
+        parser = JSONParser(unicode(stream.text))
+        parser.parse()
 
-        all_answers = []
-        for answer in answers:
-            # Obtain body of the message
-            body = answer.findAll(attrs={"class" : "post-body"})
-            body = body[0] #only 1 item in the list
-            text = body.text
+        data = parser.data
 
-            # Obtain unique askbot identifier
-            identifier = int(answer.attrMap['data-post-id'])
+        question_id = parser.data['id']
+        data = data['post_stream']['posts']
 
-            # Obtain time of the answer
-            date_tag = answer.findAll('abbr')
-            date = date_tag[0].text 
-
-            # Obtain user card
-            user = answer.findAll(attrs={"class" : "user-card"})
-            # User name is obtain from the text of the second <a> tag
-            user_links = user[0].findAll('a')
-            user_name = user_links[1].text
-            link = user_links[1]
-            href = link['href']
-
-            m = re.match(self.USER_HREF_REGEXP, href)
-            user_identifier = m.group(1)
-
-            # Obtain votes 
-            votes = answer.findAll(attrs={"class" : "vote-number"})
-            answer_votes = int(votes[0].text)
-
-            #answer = Answer(identifier, text, date, user_identifier, answer_votes)
+        for answer in data:
             dbanswer = Answers()
-            dbanswer.identifier = identifier
-            dbanswer.body = text
-            dbanswer.user_identifier = user_identifier
-            dbanswer.question_identifier = q_id
-            dbanswer.submitted_on = date
-            dbanswer.votes = answer_votes
+            dbanswer.identifier = answer['id']
+            # dbanswer.body = text
+            dbanswer.user_identifier = answer['user_id']
+            if answer['username'] not in self.user_ids_answers:
+                self.user_ids_answers.append(answer['username'])
+            dbanswer.question_identifier = question_id
+            dbanswer.submitted_on = answer['updated_at']
+            dbanswer.votes = answer['score']
+            dbanswer.body = answer['cooked']
 
-            all_answers.append(dbanswer)
+            self.session.add(dbanswer)
+            self.total_answers += 1
+        self.session.commit()
+        # In discourse answers does not have comments
 
-        return all_answers
+    def process_users(self, users_ids):
+        if users_ids is None: return
 
-    def getComments(self, typeof, identifier):
-        # typeof: "question" or "answer"
-        # identifier: question or answer identifier
+        print users_ids
 
-        div_id = ""
-        if typeof == "question":
-            div_id = "comments-for-question-" + str(identifier)
-        elif typeof == "answer":
-            div_id = "comments-for-answer-" + str(identifier)
-        else:
-            return []
+        for user_id in users_ids:
+            user = self.session.query(People).filter(People.username == user_id).first()
+            if user is not None: continue
 
-        comments_div = self.bsoup.findAll(attrs={"id" : div_id})
-        comments_div = comments_div[0]
+            url = self.url + "/users/" + user_id + ".json"
+            logging.info("Getting user " + user_id)
+            logging.info(url)
+            stream = requests.get(url, verify=False)
+            parser = JSONParser(unicode(stream.text))
+            parser.parse()
 
-        comments = comments_div.findAll(attrs={"class" : "comment"})
+            user = parser.data['user']
 
-        dbcomments = []
-        for comment in comments:
-            dbcomment = Comments()
+            dbuser = People()
+            dbuser.username = user['username']
+            dbuser.reputation = user['trust_level']
+            dbuser.avatar = user['uploaded_avatar_id']
+            dbuser.last_seen_at = user['last_posted_at']
+            dbuser.joined_at = user['created_at']
+            dbuser.identifier = user['id']
+            self.session.add(dbuser)
+        self.session.commit()
 
-            # question or answer identifier
-            if typeof == "question":
-                dbcomment.question_identifier = identifier
-            if typeof == "answer": 
-                dbcomment.answer_identifier = identifier
-            # body of comment
-            body = comment.findAll(attrs={"class" : "comment-body"})
-            body = body[0] #only 1 item in the list
-            text = body.text
-            dbcomment.body = text
+        return
 
-            # user identifier
-            user = comment.findAll(attrs={"class" : "author"})
-            user = user[0]
-            href = user['href']
-
-            m = re.match(self.USER_HREF_REGEXP, href)
-            user_identifier =  m.group(1)
-            dbcomment.user_identifier = user_identifier
-
-            # time of comment
-            comment_date = comment.findAll(attrs={"class" : "timeago"})
-            comment_date = comment_date[0].text
-            dbcomment.submitted_on = comment_date
-
-            dbcomments.append(dbcomment)
-
-        return dbcomments
 
     def parse(self):
         # Initial parsing of general info, users and questions
@@ -414,11 +296,8 @@ class Discourse(object):
                 logging.info("Subcategories not yet supported " + category['slug'])
                 logging.info(category['subcategory_ids'])
             self.process_questions(category['slug'])
-            break
-        return
 
         users_id = self.user_ids_questions+self.user_ids_answers
-        users_id += self.user_ids_comments
         # Remove duplicates using sets
         users_id = list(set(users_id))
         # if self.debug: users_id = StackSampleData.users_ids.split(";")
@@ -427,3 +306,13 @@ class Discourse(object):
         self.process_users(users_id)
 
         self.report()
+
+
+
+    def report(self):
+        logging.info("Completed.")
+        print "Total number of users added " + str(self.total_users)
+        print "Total number of questions checked " + str(self.total_questions)
+        print "Total number of answers added " + str(self.total_answers)
+        print "Total number of comments added " + str(self.total_comments)
+        print "Total number of api queries " + str(self.api_queries)
