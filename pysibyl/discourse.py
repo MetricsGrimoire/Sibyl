@@ -200,7 +200,7 @@ class Discourse(object):
             # question data from API
             # 2014-06-25T20:29:21.510Z
             date = datetime.datetime.strptime(dbquestion.last_activity_at, "%Y-%m-%dT%H:%M:%S.%fZ")
-            # date = date.replace(microsecond=0) # microsecs not stored in mysql
+            date = date.replace(microsecond=0) # microsecs not stored in mysql
             if question.last_activity_at < date:
                 #question not updated in db
                 logging.debug("    * Question not updated in db")
