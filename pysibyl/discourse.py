@@ -21,8 +21,6 @@
 
 import datetime
 import logging
-import pprint
-import re
 import requests
 
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
@@ -101,6 +99,7 @@ class Discourse(object):
         for question in data:
             process_question(question)
         update_users(parser.data['users'])
+        self.process_users(self.user_ids_questions)
 
         while 'more_topics_url' in parser.data['topic_list']:
             url = self.url + parser.data['topic_list']['more_topics_url']
@@ -114,6 +113,7 @@ class Discourse(object):
             for question in data:
                 process_question(question)
             update_users(parser.data['users'])
+            self.process_users(self.user_ids_questions)
         return
 
     def remove_question(self, dbquestion, session):
@@ -278,6 +278,7 @@ class Discourse(object):
         for answer in data:
             process_answer(answer)
         self.session.commit()
+        self.process_users(self.user_ids_answers)
 
         # It there are more than 20 answers we need to retrieve the rest
         discoure_max_answers_query = 20
@@ -305,11 +306,10 @@ class Discourse(object):
             for answer in data:
                 process_answer(answer)
             self.session.commit()
+            self.process_users(self.user_ids_answers)
 
     def process_users(self, users_ids):
         if users_ids is None: return
-
-        print users_ids
 
         for user_id in users_ids:
             user = self.session.query(People).filter(People.username == user_id).first()
@@ -332,6 +332,7 @@ class Discourse(object):
             dbuser.joined_at = user['created_at']
             dbuser.identifier = user['id']
             self.session.add(dbuser)
+            self.total_users += 1
         self.session.commit()
 
         return
@@ -340,26 +341,11 @@ class Discourse(object):
     def parse(self):
         # Initial parsing of general info, users and questions
         for category in  self.categories():
-            print category['slug']
-            if 'subcategory_ids' in category:
-                logging.info("Subcategories not yet supported " + category['slug'])
-                logging.info(category['subcategory_ids'])
+            logging.info("Parsing category: " + category['slug'])
             self.process_questions(category['slug'])
-
-        users_id = self.user_ids_questions+self.user_ids_answers
-        # Remove duplicates using sets
-        users_id = list(set(users_id))
-        # if self.debug: users_id = StackSampleData.users_ids.split(";")
-        self.total_users = len(users_id)
-
-        self.process_users(users_id)
-
         self.report()
 
-
-
     def report(self):
-        logging.info("Completed.")
         print "Total number of users added " + str(self.total_users)
         print "Total number of questions checked " + str(self.total_questions)
         print "Total number of answers added " + str(self.total_answers)
