@@ -44,6 +44,7 @@ class Discourse(object):
         self.api_queries = 0
         self.user_ids_questions = []
         self.user_ids_answers = []
+        self.users_blacklist = []
         self.total_users = 0
         self.total_questions = 0
         self.total_answers = 0
@@ -90,6 +91,7 @@ class Discourse(object):
 
         url = self.url + "/c/" + category + ".json"
         stream = requests.get(url, verify=False)
+        print url
         parser = JSONParser(unicode(stream.text))
         parser.parse()
         data = parser.data
@@ -103,6 +105,7 @@ class Discourse(object):
 
         while 'more_topics_url' in parser.data['topic_list']:
             url = self.url + parser.data['topic_list']['more_topics_url']
+            print url
             stream = requests.get(url, verify=False)
             parser = JSONParser(unicode(stream.text))
             parser.parse()
@@ -112,8 +115,12 @@ class Discourse(object):
 
             for question in data:
                 process_question(question)
-            update_users(parser.data['users'])
-            self.process_users(self.user_ids_questions)
+            if 'users' in parser.data:
+                update_users(parser.data['users'])
+                self.process_users(self.user_ids_questions)
+            else:
+                logging.info("Questions without users")
+                print (parser.data)
         return
 
     def remove_question(self, dbquestion, session):
@@ -312,6 +319,7 @@ class Discourse(object):
         if users_ids is None: return
 
         for user_id in users_ids:
+            if user_id in self.users_blacklist: continue
             user = self.session.query(People).filter(People.username == user_id).first()
             if user is not None: continue
 
@@ -324,7 +332,8 @@ class Discourse(object):
                 parser.parse()
             except:
                 logging.error("Can't get " + user_id + " data")
-                print unicode(stream.text)
+                self.users_blacklist.append(user_id)
+                # print unicode(stream.text)
                 continue
 
             user = parser.data['user']
@@ -354,3 +363,5 @@ class Discourse(object):
         print "Total number of users added " + str(self.total_users)
         print "Total number of questions checked " + str(self.total_questions)
         print "Total number of answers added " + str(self.total_answers)
+        print "Users not found: "
+        print self.users_blacklist
