@@ -100,7 +100,7 @@ class Askbot(object):
     def __init__(self, url):
         self.url = url
         self.questionHTML = None #Current question working on
-        self.alltags = []
+        self.alltags = {}
         self.allusers =  []
 
     def questions(self):
@@ -192,52 +192,29 @@ class Askbot(object):
         return dbquestion
 
 
-    def tags (self, dbquestion):
-        tagslist = []
-        questiontagslist = []
+    def tags (self, alltags):
+        self.alltags = alltags
 
         tags = self.questionHTML.getTags()
-        tagslist, questiontagslist, self.alltags = self.get_tags(dbquestion.question_identifier, tags, self.alltags)
+        tagslist, self.alltags = self.get_tags(tags, self.alltags)
 
-        return tagslist, questiontagslist
+        return tagslist
 
-    def get_tags(self, question_id, tags, alltags):
-        # This function inserts into the questionstags and tags tables
-        # information associated to a specific question.
-        # This returns an updated version of the tags list
-
+    def get_tags(self, tags, alltags):
         dbtagslist = []
-        dbquestiontagslist = []
 
         for tag in tags:
             if tag not in alltags:
                 # new tag found
-                # WARNING: in case this tool is modified to be incremental,
-                # this will fail. This is due to the tags list structure is
-                # started from scratch and not initialize based on db existing data
-                alltags.append(tag)
-                # insert tag in db
                 dbtag = Tags()
                 dbtag.tag = tag
+                alltags[tag] = dbtag
+            else:
+                dbtag = alltags[tag]
 
-                dbtagslist.append(dbtag)
+            dbtagslist.append(dbtag)
 
-                #self.session.add(dbtag)
-                #self.session.commit()
-
-            tag_id = alltags.index(tag) + 1
-
-            dbquestiontag = QuestionsTags()
-            dbquestiontag.question_identifier = question_id
-            dbquestiontag.tag_id = tag_id
-
-            dbquestiontagslist.append(dbquestiontag)
-
-            #self.session.add(dbquestiontag)
-            #self.session.commit()
-
-        return dbtagslist, dbquestiontagslist, alltags
-
+        return dbtagslist, alltags
 
 
     def answers(self, dbquestion):

@@ -138,11 +138,17 @@ def askbot_parser(session, url):
                     session.commit()
 
             #Tags
-            tags, questiontags = askbot.tags(dbquestion)
+            from pysibyl.db import Tags, QuestionsTags
+            alltags = {tag.tag : tag for tag in session.query(Tags).all()}
+            tags = askbot.tags(alltags)
             for tag in tags:
                 session.add(tag)
                 session.commit()
-            for questiontag in questiontags:
+
+                questiontag = QuestionsTags()
+                questiontag.question_identifier = dbquestion.id
+                questiontag.tag_id = tag.id
+
                 session.add(questiontag)
                 session.commit()
 
