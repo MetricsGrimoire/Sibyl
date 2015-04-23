@@ -162,7 +162,7 @@ def askbot_parser(session, url):
                     all_users.append(user_id)
 
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')
+    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')
 
     opts = read_options()
 
