@@ -139,7 +139,7 @@ def askbot_parser(session, url):
 
             #Tags
             from pysibyl.db import Tags, QuestionsTags
-            alltags = {tag.tag : tag for tag in session.query(Tags).all()}
+            alltags = {tag.tag.lower() : tag for tag in session.query(Tags).all()}
             tags = askbot.tags(alltags)
             for tag in tags:
                 session.add(tag)

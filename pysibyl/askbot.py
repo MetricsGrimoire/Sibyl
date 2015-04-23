@@ -204,13 +204,15 @@ class Askbot(object):
         dbtagslist = []
 
         for tag in tags:
-            if tag not in alltags:
+            t = tag.lower()
+
+            if t not in alltags:
                 # new tag found
                 dbtag = Tags()
                 dbtag.tag = tag
-                alltags[tag] = dbtag
+                alltags[t] = dbtag
             else:
-                dbtag = alltags[tag]
+                dbtag = alltags[t]
 
             dbtagslist.append(dbtag)
 
