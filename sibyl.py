@@ -128,7 +128,7 @@ def askbot_parser(session, url):
             answers = askbot.answers(dbquestion)
             for answer in answers:
                 if answer.user_identifier is not None:
-                    users_id.append(answer.user_identifier)
+                    users_id.append(int(answer.user_identifier))
                 session.add(answer)
                 session.commit()
                 # comments per answer
@@ -162,7 +162,7 @@ def askbot_parser(session, url):
                     all_users.append(user_id)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')
+    # logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s')
 
     opts = read_options()
 
