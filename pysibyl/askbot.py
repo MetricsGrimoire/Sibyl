@@ -85,7 +85,7 @@ class QuestionsIter(object):
             dbquestion.url = question['url']
             dbquestion.author_identifier = question['author']['id']
             dbquestion.added_at = datetime.datetime.fromtimestamp(int(question['added_at'])).strftime('%Y-%m-%d %H:%M:%S')
-            dbquestion.score = question['score']            
+            dbquestion.score = question['score']
 
             questions.append(dbquestion)
 
@@ -111,7 +111,7 @@ class Askbot(object):
         # This function removes all information in cascade for
         # info found in dbquestion. Given that we're using Myisam
         # the cascade removal is manually done.
-        
+
         # removing question
         query_question = session.query(Questions).\
             filter(Questions.question_identifier==int(dbquestion.question_identifier))
@@ -151,7 +151,7 @@ class Askbot(object):
         # This function checks if the dbquestion is updated
         # according to the information found in the database
         # and the "last_activity_at" field
-        
+
         updated = True
         found = True
 
@@ -281,7 +281,7 @@ class QuestionHTML(Askbot):
     def getBody(self):
         # Returns body question message
         # This is found under the <meta name="description" content="">
-    
+
         metas = self.bsoup.findAll('meta')
         body = ""
 
@@ -302,7 +302,7 @@ class QuestionHTML(Askbot):
         # Returns a list of tags
         # This is found under the <meta name="keywords" content="">
         # Keywords are comma separated
-        
+
         metas = self.bsoup.findAll('meta')
         tags = ""
 
@@ -380,9 +380,9 @@ class QuestionHTML(Askbot):
 
         comments_div = self.bsoup.findAll(attrs={"id" : div_id})
         comments_div = comments_div[0]
-     
+
         comments = comments_div.findAll(attrs={"class" : "comment"})
-            
+
         dbcomments = []
         for comment in comments:
             dbcomment = Comments()
