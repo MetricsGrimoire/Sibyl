@@ -379,9 +379,15 @@ class QuestionHTML(Askbot):
             return []
 
         comments_div = self.bsoup.findAll(attrs={"id" : div_id})
-        comments_div = comments_div[0]
 
-        comments = comments_div.findAll(attrs={"class" : "comment"})
+        # Let's try with the new style
+        if not comments_div:
+            attrs = {'data-parent-post-type' : typeof,
+                     'data-parent-post-id' : str(identifier)}
+            comments_div = self.bsoup.findAll('div', attrs=attrs)
+
+        comments_div = comments_div[0]
+        comments = comments_div.findAll(attrs={"class" : re.compile('^comment(?: js-comment)?$')})
 
         dbcomments = []
         for comment in comments:
