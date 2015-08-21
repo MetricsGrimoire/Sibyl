@@ -26,6 +26,8 @@ import requests
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
+from requests.packages import urllib3
+urllib3.disable_warnings()
 
 class Discourse(object):
     """Discourse main class

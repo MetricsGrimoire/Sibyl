@@ -29,6 +29,8 @@ from BeautifulSoup import BeautifulSoup
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
+from requests.packages import urllib3
+urllib3.disable_warnings()
 
 class QuestionsIter(object):
     """Iterator to go through the set of questions

@@ -28,6 +28,9 @@ import time
 from pysibyl.db import People, Questions, Tags, QuestionsTags, Answers, Comments
 from pysibyl.utils import JSONParser
 
+from requests.packages import urllib3
+urllib3.disable_warnings()
+
 class StackSampleData(object):
     """Sample data from StackExchange API to debug without doing real queries"""
     @staticmethod
