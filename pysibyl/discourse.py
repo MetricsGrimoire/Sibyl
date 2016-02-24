@@ -107,6 +107,7 @@ class Discourse(object):
 
         while 'more_topics_url' in parser.data['topic_list']:
             url = self.url + parser.data['topic_list']['more_topics_url']
+            url = url.replace('/latest?', '/latest.json?')
             print url
             stream = requests.get(url, verify=False)
             parser = JSONParser(unicode(stream.text))
